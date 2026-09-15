@@ -1,11 +1,11 @@
 # 🚀 3X-UI Manager (Android App)
 
-[![Android SDK](https://img.shields.io/badge/API-26%2B%20%28Android%208.0%2B%20)-00F5A0?style=for-the-badge&logo=android&logoColor=black)](https://developer.android.com)
+[![Min SDK](https://img.shields.io/badge/Min_SDK-26%2B-00F5A0?style=for-the-badge&logo=android&logoColor=black)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.0-06B6D4?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-38BDF8?style=for-the-badge&logo=jetpackcompose&logoColor=black)](https://developer.android.com/jetpack/compose)
 [![Version](https://img.shields.io/badge/Version-1.2.2.1-00F5A0?style=for-the-badge)](https://github.com/nkrenta/3x-ui_app)
 
-**3X-UI Manager** — современное мобильное Android-приложение для удобного управления, настройки и мониторинга панелей **3x-ui** (X-UI) по защищенному протоколу HTTPS / REST API. Приложение выполнено в кибер-панковском интерфейсе **Cyber-Ops / Dark Theme** на базе системы **Google Stitch AI** с поддержкой динамической генерации Reality-ключей, биометрии и автоустановки панелей по SSH.
+**3X-UI Manager** — современное мобильное Android-приложение для удобного управления, настройки и мониторинга панелей **3x-ui** (X-UI) по защищенному протоколу HTTPS / REST API. Приложение выполнено в стилистике панели 3x-ui с поддержкой динамической генерации Reality-ключей, биометрии и автоустановки панелей по SSH.
 
 ---
 
