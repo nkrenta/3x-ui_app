@@ -1,5 +1,6 @@
 package com.example.xuimanager.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.xuimanager.data.api.model.ApiClient
@@ -32,7 +33,22 @@ class UsersViewModel : ViewModel() {
 
     fun setConnection(connection: PanelConnection, context: android.content.Context) {
         currentConnection = connection
-        loadInbounds(context)
+        loadAllClients(context)
+    }
+
+    fun loadAllClients(context: Context) {
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            _error.value = null
+            viewModelScope.launch {
+                repository.getClientsList(context, connection).onSuccess { clientsList ->
+                    _clients.value = clientsList
+                    _isLoading.value = false
+                }.onFailure { _ ->
+                    loadInbounds(context)
+                }
+            }
+        }
     }
 
     fun loadInbounds(context: android.content.Context) {

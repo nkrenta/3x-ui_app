@@ -139,6 +139,13 @@ interface XuiApiService {
     ): Response<GenericResponse>
 
     // Clients
+    // Clients List
+    @GET("panel/api/clients/list")
+    suspend fun getClientsListApiGet(): Response<ClientListResponse>
+
+    @POST("panel/api/clients/list")
+    suspend fun getClientsListApiPost(): Response<ClientListResponse>
+
     @POST("panel/inbound/get/{id}")
     suspend fun getInboundClients(
         @Path("id") id: Int

@@ -144,21 +144,75 @@ data class ClientListResponse(
     @SerializedName("obj") val obj: List<ApiClient>? = null
 )
 
-data class ApiClient(
-    @SerializedName("id") val id: String? = null,
-    @SerializedName("email") val email: String? = null,
+data class ClientTraffic(
+    @SerializedName("id") val id: Int = 0,
+    @SerializedName("inboundId") val inboundId: Int = 0,
     @SerializedName("enable") val enable: Boolean = true,
-    @SerializedName("expiry_time") val expiryTime: Long = 0,
-    @SerializedName("total") val total: Long = 0,
+    @SerializedName("email") val email: String? = null,
     @SerializedName("up") val up: Long = 0,
     @SerializedName("down") val down: Long = 0,
-    @SerializedName("flow") val flow: String? = null,
-    @SerializedName("tg_id") val tgId: JsonElement? = null,
-    @SerializedName("sub_id") val subId: String? = null,
-    @SerializedName("reset") val reset: Long = 0,
-    @SerializedName("inbound_id") val inboundId: Int = 0,
-    @SerializedName("settings") val settings: JsonElement? = null
+    @SerializedName("expiryTime") val expiryTime: Long = 0,
+    @SerializedName("total") val total: Long = 0,
+    @SerializedName("lastOnline") val lastOnline: Long = 0,
+    @SerializedName("lastSubFetch") val lastSubFetch: Long = 0
 )
+
+data class ApiClient(
+    @SerializedName("id") val id: JsonElement? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("subId") val subId: String? = null,
+    @SerializedName("uuid") val uuid: String? = null,
+    @SerializedName("password") val password: String? = null,
+    @SerializedName("auth") val auth: String? = null,
+    @SerializedName("flow") val flow: String? = null,
+    @SerializedName("limitIp") val limitIp: Int = 0,
+    @SerializedName("limitHwid") val limitHwid: Int = 0,
+    @SerializedName("totalGB") val totalGB: Long = 0,
+    @SerializedName("expiryTime") val expiryTime: Long = 0,
+    @SerializedName("enable") val enable: Boolean = true,
+    @SerializedName("tgId") val tgId: JsonElement? = null,
+    @SerializedName("comment") val comment: String? = null,
+    @SerializedName("inboundIds") val inboundIds: List<Int>? = null,
+    @SerializedName("traffic") val traffic: ClientTraffic? = null,
+    @SerializedName("createdAt") val createdAt: Long = 0,
+    @SerializedName("updatedAt") val updatedAt: Long = 0,
+
+    // Fallbacks for snake_case fields
+    @SerializedName("expiry_time") val expiryTimeLegacy: Long = 0,
+    @SerializedName("sub_id") val subIdLegacy: String? = null,
+    @SerializedName("total") val totalLegacy: Long = 0,
+    @SerializedName("up") val upLegacy: Long = 0,
+    @SerializedName("down") val downLegacy: Long = 0,
+    @SerializedName("inbound_id") val inboundIdLegacy: Int = 0
+) {
+    fun getIdAsString(): String {
+        return when {
+            id == null || id.isJsonNull -> ""
+            id.isJsonPrimitive -> id.asString
+            else -> id.toString()
+        }
+    }
+
+    fun getEffectiveSubId(): String {
+        return subId ?: subIdLegacy ?: ""
+    }
+
+    fun getEffectiveExpiryTime(): Long {
+        return if (expiryTime != 0L) expiryTime else expiryTimeLegacy
+    }
+
+    fun getUpTraffic(): Long {
+        return traffic?.up ?: upLegacy
+    }
+
+    fun getDownTraffic(): Long {
+        return traffic?.down ?: downLegacy
+    }
+
+    fun getTotalTrafficLimit(): Long {
+        return if (totalGB > 0) totalGB * 1024 * 1024 * 1024 else totalLegacy
+    }
+}
 
 // Add client request
 data class AddClientRequest(
@@ -183,7 +237,7 @@ data class ClientSettingsItem(
     @SerializedName("reset") val reset: Long = 0
 )
 
-// Generic response (obj - может быть объектом, массивом, строкой, числом, булевым значением)
+// Generic response
 data class GenericResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("msg") val msg: String? = null,
