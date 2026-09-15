@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">3X-UI</string>
+    <string name="tab_dashboard">Dashboard</string>
+    <string name="tab_connections">Connections</string>
+    <string name="tab_users">Users</string>
+    <string name="tab_panel_settings">Panel Settings</string>
+    <string name="tab_xray_config">Xray Config</string>
+    <string name="tab_ssh_installer">SSH Installer</string>
+    <string name="tab_app_settings">App Settings</string>
+
+    <string name="cpu_usage">CPU</string>
+    <string name="ram_usage">MEMORY</string>
+    <string name="swap_usage">SWAP</string>
+    <string name="disk_usage">DISK</string>
+    <string name="traffic_speed">TOTAL TRAFFIC SPEED</string>
+    <string name="connections_count">OPEN CONNECTIONS</string>
+    <string name="restart_xray">Restart</string>
+    <string name="stop_xray">Stop</string>
+    <string name="logs">Logs</string>
+
+    <string name="templates_title">Inbound Templates</string>
+    <string name="create_from_template">Create from template</string>
+    <string name="add_template">+ New Template</string>
+
+    <string name="font_size">Font Size</string>
+    <string name="app_language">App Language</string>
+    <string name="alerts_config">Alert Notifications Setup</string>
+    <string name="biometric_protection">App Protection (Biometric/PIN)</string>
+    <string name="app_version">App Version: 1.2.2</string>
+</resources>

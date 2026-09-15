@@ -1,0 +1,33 @@
+<resources>
+    <string name="app_name">3X-UI</string>
+    <string name="tab_dashboard">Дашборд</string>
+    <string name="tab_connections">Подключения</string>
+    <string name="tab_users">Пользователи</string>
+    <string name="tab_panel_settings">Настройки панели</string>
+    <string name="tab_xray_config">Конфигурация Xray</string>
+    <string name="tab_ssh_installer">Автоустановка 3x-ui</string>
+    <string name="tab_app_settings">Настройки приложения</string>
+
+    <!-- Дашборд -->
+    <string name="cpu_usage">ЦП</string>
+    <string name="ram_usage">ПАМЯТЬ</string>
+    <string name="swap_usage">ПОДКАЧКА</string>
+    <string name="disk_usage">ДИСК</string>
+    <string name="traffic_speed">ОБЩАЯ СКОРОСТЬ ПЕРЕДАЧИ ТРАФИКА</string>
+    <string name="connections_count">КОЛИЧЕСТВО СОЕДИНЕНИЙ</string>
+    <string name="restart_xray">Перезапуск</string>
+    <string name="stop_xray">Стоп</string>
+    <string name="logs">Логи</string>
+
+    <!-- Шаблоны -->
+    <string name="templates_title">Шаблоны Входящих</string>
+    <string name="create_from_template">Создать из шаблона</string>
+    <string name="add_template">+ Новый шаблон</string>
+
+    <!-- Настройки приложения -->
+    <string name="font_size">Размер шрифта</string>
+    <string name="app_language">Язык приложения</string>
+    <string name="alerts_config">Настройка уведомлений (Alerts)</string>
+    <string name="biometric_protection">Защита приложения (Biometric/PIN)</string>
+    <string name="app_version">Версия приложения: 1.2.2</string>
+</resources>
