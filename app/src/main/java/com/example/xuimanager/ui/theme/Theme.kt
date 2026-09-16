@@ -1,20 +1,26 @@
 package com.example.xuimanager.ui.theme
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 val LocalFontSizeScale = compositionLocalOf { 1.0f }
 
 // Гарнитура шрифта из прототипа Google Stitch / Google Sans (FontFamily.SansSerif)
-private val StitchFontFamily = FontFamily.SansSerif
+val StitchFontFamily = FontFamily.SansSerif
+val GeistFontFamily = FontFamily.SansSerif
+val GeistMonoFontFamily = FontFamily.Monospace
 
 private val DarkColorScheme = darkColorScheme(
     background = DarkBackground,
@@ -91,4 +97,30 @@ fun ThreeXUITheme(
             content = content
         )
     }
+}
+
+@Composable
+fun CyberOpsButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+    shape: Shape = RoundedCornerShape(8.dp),
+    content: @Composable RowScope.() -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = shape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = AccentBlue.copy(alpha = 0.28f),
+            contentColor = AccentCyan,
+            disabledContainerColor = DarkCardBg,
+            disabledContentColor = TextSecondary
+        ),
+        border = BorderStroke(1.dp, if (enabled) AccentCyan.copy(alpha = 0.5f) else DarkCardBorder),
+        contentPadding = contentPadding,
+        content = content
+    )
 }

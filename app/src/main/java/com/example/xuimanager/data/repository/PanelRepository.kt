@@ -96,6 +96,17 @@ class PanelRepository {
             }
         }
 
+    suspend fun getInboundsList(context: Context, connection: PanelConnection): Result<List<Inbound>> =
+        withContext(Dispatchers.IO) {
+            val client = XuiApiClient.getInstance(context, connection)
+            val loginResult = client.login()
+            if (loginResult.isFailure) {
+                Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
+            } else {
+                client.getInboundsList()
+            }
+        }
+
     suspend fun getInbounds(context: Context, connection: PanelConnection): Result<List<Inbound>> =
         withContext(Dispatchers.IO) {
             val client = XuiApiClient.getInstance(context, connection)

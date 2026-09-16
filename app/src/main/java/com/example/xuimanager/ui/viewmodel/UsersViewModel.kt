@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.xuimanager.data.api.model.ApiClient
 import com.example.xuimanager.data.api.model.ClientSettingsItem
+import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.model.PanelConnection
 import com.example.xuimanager.data.repository.PanelRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +17,7 @@ class UsersViewModel : ViewModel() {
     val clients = _clients.asStateFlow()
 
     private val _inbounds =
-        MutableStateFlow<List<com.example.xuimanager.data.api.model.Inbound>>(emptyList())
+        MutableStateFlow<List<Inbound>>(emptyList())
     val inbounds = _inbounds.asStateFlow()
 
     private val _selectedInboundId = MutableStateFlow<Int?>(null)
@@ -28,12 +29,23 @@ class UsersViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
+    private val _highlightedClientId = MutableStateFlow<String?>(null)
+    val highlightedClientId = _highlightedClientId.asStateFlow()
+
     private var currentConnection: PanelConnection? = null
     private val repository = PanelRepository()
 
-    fun setConnection(connection: PanelConnection, context: android.content.Context) {
+    fun setConnection(connection: PanelConnection, context: Context) {
         currentConnection = connection
         loadAllClients(context)
+    }
+
+    fun highlightClient(clientId: String) {
+        _highlightedClientId.value = clientId
+    }
+
+    fun clearHighlight() {
+        _highlightedClientId.value = null
     }
 
     fun loadAllClients(context: Context) {
@@ -51,7 +63,7 @@ class UsersViewModel : ViewModel() {
         }
     }
 
-    fun loadInbounds(context: android.content.Context) {
+    fun loadInbounds(context: Context) {
         currentConnection?.let { connection ->
             _isLoading.value = true
             viewModelScope.launch {
@@ -70,7 +82,7 @@ class UsersViewModel : ViewModel() {
         }
     }
 
-    fun loadClients(context: android.content.Context, inboundId: Int) {
+    fun loadClients(context: Context, inboundId: Int) {
         currentConnection?.let { connection ->
             _selectedInboundId.value = inboundId
             _isLoading.value = true
@@ -86,7 +98,7 @@ class UsersViewModel : ViewModel() {
         }
     }
 
-    fun addClient(context: android.content.Context, client: ClientSettingsItem) {
+    fun addClient(context: Context, client: ClientSettingsItem) {
         _selectedInboundId.value?.let { inboundId ->
             currentConnection?.let { connection ->
                 _isLoading.value = true
@@ -102,7 +114,7 @@ class UsersViewModel : ViewModel() {
         }
     }
 
-    fun deleteClient(context: android.content.Context, clientId: String) {
+    fun deleteClient(context: Context, clientId: String) {
         _selectedInboundId.value?.let { inboundId ->
             currentConnection?.let { connection ->
                 _isLoading.value = true
@@ -119,7 +131,7 @@ class UsersViewModel : ViewModel() {
         }
     }
 
-    fun toggleClient(context: android.content.Context, client: ApiClient) {
+    fun toggleClient(context: Context, client: ApiClient) {
         _selectedInboundId.value?.let { inboundId ->
             currentConnection?.let { connection ->
                 viewModelScope.launch {
@@ -133,7 +145,7 @@ class UsersViewModel : ViewModel() {
         }
     }
 
-    fun resetClientTraffic(context: android.content.Context, clientId: String) {
+    fun resetClientTraffic(context: Context, clientId: String) {
         currentConnection?.let { connection ->
             viewModelScope.launch {
                 repository.resetClientTraffic(context, connection, clientId).onSuccess { _ ->

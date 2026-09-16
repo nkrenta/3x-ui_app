@@ -483,6 +483,28 @@ class XuiApiClient private constructor(
         }
     }
 
+    suspend fun getInboundsList(): Result<List<Inbound>> = withContext(Dispatchers.IO) {
+        try {
+            val res1 = service.getInboundsListApiGet()
+            if (res1.isSuccessful && res1.body()?.success == true && res1.body()?.obj != null) {
+                return@withContext Result.success(res1.body()!!.obj!!)
+            }
+            val res2 = service.getInboundsListApiPost()
+            if (res2.isSuccessful && res2.body()?.success == true && res2.body()?.obj != null) {
+                return@withContext Result.success(res2.body()!!.obj!!)
+            }
+            val legacyRes = getInbounds()
+            if (legacyRes.isSuccess) {
+                return@withContext legacyRes
+            }
+            val code = if (!res1.isSuccessful) res1.code() else res2.code()
+            Result.failure(Exception("HTTP $code"))
+        } catch (e: Exception) {
+            val msg = e.localizedMessage ?: e.message ?: "Ошибка получения списка инбаундов"
+            Result.failure(Exception(msg))
+        }
+    }
+
     suspend fun getClientsList(): Result<List<ApiClient>> = withContext(Dispatchers.IO) {
         try {
             val res1 = service.getClientsListApiGet()

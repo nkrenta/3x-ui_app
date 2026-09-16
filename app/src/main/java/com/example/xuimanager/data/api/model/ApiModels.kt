@@ -1,6 +1,9 @@
 package com.example.xuimanager.data.api.model
 
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.google.gson.annotations.SerializedName
 import java.util.UUID
 
@@ -87,6 +90,12 @@ data class PanelInfo(
     @SerializedName("sys_uptime") val sysUptimeLegacy: Long = 0
 )
 
+data class InboundClientInfo(
+    val email: String,
+    val id: String,
+    val flow: String = ""
+)
+
 // Inbound models
 data class InboundListResponse(
     @SerializedName("success") val success: Boolean,
@@ -100,17 +109,22 @@ data class Inbound(
     @SerializedName("down") val down: Long = 0,
     @SerializedName("total") val total: Long = 0,
     @SerializedName("remark") val remark: String? = null,
+    @SerializedName("subSortIndex") val subSortIndex: Int = 1,
+    @SerializedName("sub_sort_index") val subSortIndexLegacy: Int = 1,
     @SerializedName("enable") val enable: Boolean = true,
-    @SerializedName("expiry_time") val expiryTime: Long = 0,
+    @SerializedName("expiryTime") val expiryTime: Long = 0,
+    @SerializedName("expiry_time") val expiryTimeLegacy: Long = 0,
     @SerializedName("listen") val listen: String? = null,
     @SerializedName("port") val port: Int = 0,
     @SerializedName("protocol") val protocol: String? = null,
     @SerializedName("settings") val settings: JsonElement? = null,
-    @SerializedName("stream_settings") val streamSettings: JsonElement? = null,
+    @SerializedName("streamSettings") val streamSettings: JsonElement? = null,
+    @SerializedName("stream_settings") val streamSettingsLegacy: JsonElement? = null,
     @SerializedName("tag") val tag: String? = null,
     @SerializedName("sniffing") val sniffing: JsonElement? = null,
     @SerializedName("allocate") val allocate: JsonElement? = null,
-    @SerializedName("stats") val stats: JsonElement? = null
+    @SerializedName("stats") val stats: JsonElement? = null,
+    @SerializedName("clientStats") val clientStats: List<ClientTraffic>? = null
 ) {
     fun getSettingsAsString(): String {
         return when {
@@ -133,6 +147,185 @@ data class Inbound(
             sniffing == null || sniffing.isJsonNull -> "{}"
             sniffing.isJsonPrimitive -> sniffing.asString
             else -> sniffing.toString()
+        }
+    }
+
+    fun getStreamSettingsJsonObject(): JsonObject? {
+        return try {
+            when {
+                streamSettings == null || streamSettings.isJsonNull -> null
+                streamSettings.isJsonObject -> streamSettings.asJsonObject
+                streamSettings.isJsonPrimitive -> {
+                    val str = streamSettings.asString.trim()
+                    if (str.startsWith("{")) {
+                        JsonParser.parseString(str).asJsonObject
+                    } else null
+                }
+                else -> null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun getNetworkType(): String {
+        val streamObj = getStreamSettingsJsonObject() ?: return "TCP"
+        if (streamObj.has("network") && !streamObj.get("network").isJsonNull) {
+            val net = streamObj.get("network").asString
+            if (net.isNotBlank()) return net
+        }
+        return "TCP"
+    }
+
+    fun getSecurityType(): String {
+        val streamObj = getStreamSettingsJsonObject() ?: return "none"
+        if (streamObj.has("security") && !streamObj.get("security").isJsonNull) {
+            val sec = streamObj.get("security").asString
+            if (sec.isNotBlank()) return sec
+        }
+        return "none"
+    }
+
+    fun getRealityTarget(): String {
+        val streamObj = getStreamSettingsJsonObject() ?: return "—"
+        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+            val realityObj = streamObj.getAsJsonObject("realitySettings")
+            if (realityObj.has("target") && !realityObj.get("target").isJsonNull) {
+                return realityObj.get("target").asString
+            }
+        }
+        if (streamObj.has("target") && !streamObj.get("target").isJsonNull) {
+            return streamObj.get("target").asString
+        }
+        if (streamObj.has("tlsSettings") && streamObj.get("tlsSettings").isJsonObject) {
+            val tlsObj = streamObj.getAsJsonObject("tlsSettings")
+            if (tlsObj.has("serverName") && !tlsObj.get("serverName").isJsonNull) {
+                return tlsObj.get("serverName").asString
+            }
+        }
+        return "—"
+    }
+
+    fun getRealityPublicKey(): String {
+        val streamObj = getStreamSettingsJsonObject() ?: return ""
+        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+            val realityObj = streamObj.getAsJsonObject("realitySettings")
+            if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
+                val innerSettings = realityObj.getAsJsonObject("settings")
+                if (innerSettings.has("publicKey") && !innerSettings.get("publicKey").isJsonNull) {
+                    return innerSettings.get("publicKey").asString
+                }
+            }
+        }
+        return ""
+    }
+
+    fun getRealityPrivateKey(): String {
+        val streamObj = getStreamSettingsJsonObject() ?: return ""
+        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+            val realityObj = streamObj.getAsJsonObject("realitySettings")
+            if (realityObj.has("privateKey") && !realityObj.get("privateKey").isJsonNull) {
+                return realityObj.get("privateKey").asString
+            }
+        }
+        return ""
+    }
+
+    fun getRealityShortIds(): String {
+        val streamObj = getStreamSettingsJsonObject() ?: return "—"
+        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+            val realityObj = streamObj.getAsJsonObject("realitySettings")
+            if (realityObj.has("shortIds") && realityObj.get("shortIds").isJsonArray) {
+                val arr = realityObj.getAsJsonArray("shortIds")
+                return arr.joinToString(", ") { it.asString }
+            }
+        }
+        return "—"
+    }
+
+    fun getRealitySpiderX(): String {
+        val streamObj = getStreamSettingsJsonObject() ?: return "—"
+        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+            val realityObj = streamObj.getAsJsonObject("realitySettings")
+            if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
+                val innerSettings = realityObj.getAsJsonObject("settings")
+                if (innerSettings.has("spiderX") && !innerSettings.get("spiderX").isJsonNull) {
+                    return innerSettings.get("spiderX").asString
+                }
+            }
+        }
+        return "—"
+    }
+
+    fun getRealityFingerprint(): String {
+        val streamObj = getStreamSettingsJsonObject() ?: return "chrome"
+        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+            val realityObj = streamObj.getAsJsonObject("realitySettings")
+            if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
+                val innerSettings = realityObj.getAsJsonObject("settings")
+                if (innerSettings.has("fingerprint") && !innerSettings.get("fingerprint").isJsonNull) {
+                    return innerSettings.get("fingerprint").asString
+                }
+            }
+        }
+        return "chrome"
+    }
+
+    fun isSniffingEnabled(): Boolean {
+        return try {
+            val sniffObj = when {
+                sniffing == null || sniffing.isJsonNull -> null
+                sniffing.isJsonObject -> sniffing.asJsonObject
+                sniffing.isJsonPrimitive -> JsonParser.parseString(sniffing.asString).asJsonObject
+                else -> null
+            }
+            if (sniffObj?.has("enabled") == true && !sniffObj.get("enabled").isJsonNull) {
+                sniffObj.get("enabled").asBoolean
+            } else false
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun getClientsListFromSettings(): List<InboundClientInfo> {
+        return try {
+            val settingsObj = when {
+                settings == null || settings.isJsonNull -> null
+                settings.isJsonObject -> settings.asJsonObject
+                settings.isJsonPrimitive -> JsonParser.parseString(settings.asString).asJsonObject
+                else -> null
+            }
+            if (settingsObj?.has("clients") == true && settingsObj.get("clients").isJsonArray) {
+                val clientsArray = settingsObj.getAsJsonArray("clients")
+                val list = mutableListOf<InboundClientInfo>()
+                for (elem in clientsArray) {
+                    if (elem.isJsonObject) {
+                        val c = elem.asJsonObject
+                        val email = if (c.has("email") && !c.get("email").isJsonNull) c.get("email").asString else "Client"
+                        val cId = if (c.has("id") && !c.get("id").isJsonNull) c.get("id").asString else ""
+                        val flow = if (c.has("flow") && !c.get("flow").isJsonNull) c.get("flow").asString else ""
+                        list.add(InboundClientInfo(email, cId, flow))
+                    }
+                }
+                list
+            } else emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun getElementPrettyJson(element: JsonElement?): String {
+        return try {
+            when {
+                element == null || element.isJsonNull -> "{}"
+                element.isJsonPrimitive -> element.asString
+                else -> {
+                    val gson = GsonBuilder().setPrettyPrinting().create()
+                    gson.toJson(element)
+                }
+            }
+        } catch (_: Exception) {
+            "{}"
         }
     }
 }

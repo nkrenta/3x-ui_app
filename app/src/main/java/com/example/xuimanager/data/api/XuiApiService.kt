@@ -90,6 +90,13 @@ interface XuiApiService {
         @Body body: JsonObject
     ): Response<GenericResponse>
 
+    // Inbounds List REST API v2.x (/panel/api/inbounds/list)
+    @GET("panel/api/inbounds/list")
+    suspend fun getInboundsListApiGet(): Response<InboundListResponse>
+
+    @POST("panel/api/inbounds/list")
+    suspend fun getInboundsListApiPost(): Response<InboundListResponse>
+
     // Legacy Inbounds Add
     @POST("panel/inbound/list")
     suspend fun getInbounds(): Response<InboundListResponse>
