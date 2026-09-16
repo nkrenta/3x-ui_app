@@ -123,9 +123,9 @@ class UsersViewModel : ViewModel() {
                         .onSuccess { _ ->
                             loadClients(context, inboundId)
                         }.onFailure { e ->
-                        _error.value = e.localizedMessage
-                        _isLoading.value = false
-                    }
+                            _error.value = e.localizedMessage
+                            _isLoading.value = false
+                        }
                 }
             }
         }

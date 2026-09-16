@@ -100,7 +100,8 @@ class ConnectionsViewModel : ViewModel() {
     }
 
     fun updateConnection(connection: PanelConnection, context: Context? = null) {
-        _connections.value = _connections.value.map { if (it.id == connection.id) connection else it }
+        _connections.value =
+            _connections.value.map { if (it.id == connection.id) connection else it }
         context?.let { persistConnections(it) }
     }
 
@@ -128,7 +129,7 @@ class ConnectionsViewModel : ViewModel() {
                 }
             }
 
-            _connections.value = _connections.value.map { 
+            _connections.value = _connections.value.map {
                 if (it.id == connection.id) {
                     it.copy(
                         isConnected = success,
@@ -136,7 +137,7 @@ class ConnectionsViewModel : ViewModel() {
                         xrayVersion = xrayVer,
                         pingMs = if (success) measuredPing else null
                     )
-                } else it 
+                } else it
             }
             persistConnections(context)
             _isLoading.value = false
@@ -156,7 +157,11 @@ class ConnectionsViewModel : ViewModel() {
         }
     }
 
-    fun restartPanel(context: Context, connection: PanelConnection, onResult: (Boolean, String) -> Unit) {
+    fun restartPanel(
+        context: Context,
+        connection: PanelConnection,
+        onResult: (Boolean, String) -> Unit
+    ) {
         viewModelScope.launch {
             repository.restartPanel(context, connection)
                 .onSuccess { onResult(true, "Панель перезапускается...") }
@@ -164,7 +169,11 @@ class ConnectionsViewModel : ViewModel() {
         }
     }
 
-    fun restartXrayService(context: Context, connection: PanelConnection, onResult: (Boolean, String) -> Unit) {
+    fun restartXrayService(
+        context: Context,
+        connection: PanelConnection,
+        onResult: (Boolean, String) -> Unit
+    ) {
         viewModelScope.launch {
             repository.restartXrayService(context, connection)
                 .onSuccess { onResult(true, "Служба Xray перезапускается...") }

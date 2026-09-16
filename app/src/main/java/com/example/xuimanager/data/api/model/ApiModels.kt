@@ -161,6 +161,7 @@ data class Inbound(
                         JsonParser.parseString(str).asJsonObject
                     } else null
                 }
+
                 else -> null
             }
         } catch (_: Exception) {
@@ -301,9 +302,12 @@ data class Inbound(
                 for (elem in clientsArray) {
                     if (elem.isJsonObject) {
                         val c = elem.asJsonObject
-                        val email = if (c.has("email") && !c.get("email").isJsonNull) c.get("email").asString else "Client"
-                        val cId = if (c.has("id") && !c.get("id").isJsonNull) c.get("id").asString else ""
-                        val flow = if (c.has("flow") && !c.get("flow").isJsonNull) c.get("flow").asString else ""
+                        val email =
+                            if (c.has("email") && !c.get("email").isJsonNull) c.get("email").asString else "Client"
+                        val cId =
+                            if (c.has("id") && !c.get("id").isJsonNull) c.get("id").asString else ""
+                        val flow =
+                            if (c.has("flow") && !c.get("flow").isJsonNull) c.get("flow").asString else ""
                         list.add(InboundClientInfo(email, cId, flow))
                     }
                 }

@@ -3,13 +3,27 @@ package com.example.xuimanager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
-import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,7 +35,13 @@ import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -37,9 +57,27 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.xuimanager.ui.screens.*
-import com.example.xuimanager.ui.theme.*
-import com.example.xuimanager.ui.viewmodel.*
+import com.example.xuimanager.ui.screens.AppSettingsScreen
+import com.example.xuimanager.ui.screens.DashboardScreen
+import com.example.xuimanager.ui.screens.InboundsScreen
+import com.example.xuimanager.ui.screens.PinLockScreen
+import com.example.xuimanager.ui.screens.SSHInstallerScreen
+import com.example.xuimanager.ui.screens.UsersScreen
+import com.example.xuimanager.ui.theme.AccentBlue
+import com.example.xuimanager.ui.theme.AccentCyan
+import com.example.xuimanager.ui.theme.AppLanguage
+import com.example.xuimanager.ui.theme.DarkBackground
+import com.example.xuimanager.ui.theme.DarkCardBg
+import com.example.xuimanager.ui.theme.LocalAppLanguage
+import com.example.xuimanager.ui.theme.TextSecondary
+import com.example.xuimanager.ui.theme.ThreeXUITheme
+import com.example.xuimanager.ui.theme.stringRes
+import com.example.xuimanager.ui.viewmodel.ConnectionsViewModel
+import com.example.xuimanager.ui.viewmodel.InboundsViewModel
+import com.example.xuimanager.ui.viewmodel.SSHInstallerViewModel
+import com.example.xuimanager.ui.viewmodel.SettingsViewModel
+import com.example.xuimanager.ui.viewmodel.TemplatesViewModel
+import com.example.xuimanager.ui.viewmodel.UsersViewModel
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,7 +95,8 @@ class MainActivity : FragmentActivity() {
 
             CompositionLocalProvider(LocalAppLanguage provides appLang) {
                 ThreeXUITheme(fontSizeScale = fontSizeScale) {
-                    val isLockedNeeded = (isPinEnabled || isBiometricEnabled) && (pinCode.isNotBlank() || isBiometricEnabled)
+                    val isLockedNeeded =
+                        (isPinEnabled || isBiometricEnabled) && (pinCode.isNotBlank() || isBiometricEnabled)
                     if (isLockedNeeded && !isUnlocked) {
                         PinLockScreen(
                             targetPin = pinCode,
@@ -156,7 +195,8 @@ fun MainAppStructure(
                                                 }
                                             },
                                             onLongPress = {
-                                                Toast.makeText(context, label, Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, label, Toast.LENGTH_SHORT)
+                                                    .show()
                                             }
                                         )
                                     },
