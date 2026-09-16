@@ -100,8 +100,7 @@ class ConnectionsViewModel : ViewModel() {
     }
 
     fun updateConnection(connection: PanelConnection, context: Context? = null) {
-        _connections.value =
-            _connections.value.map { if (it.id == connection.id) connection else it }
+        _connections.value = _connections.value.map { if (it.id == connection.id) connection else it }
         context?.let { persistConnections(it) }
     }
 
@@ -121,15 +120,20 @@ class ConnectionsViewModel : ViewModel() {
             var xrayVer: String? = connection.xrayVersion
 
             if (success) {
-                repository.fetchGeoLocation(connection.host)?.let { geoName ->
-                    updatedName = geoName
+                // Если название совпадает с IP/хостом или еще не содержит страну с флагом, запрашиваем и СОХРАНЯЕМ имя страны
+                if (connection.name == connection.host || connection.name.isBlank() || !connection.name.contains("(")) {
+                    repository.fetchGeoLocation(connection.host)?.let { geoName ->
+                        if (geoName.isNotBlank()) {
+                            updatedName = geoName
+                        }
+                    }
                 }
                 repository.getXrayVersion(context, connection).onSuccess { ver ->
                     xrayVer = ver
                 }
             }
 
-            _connections.value = _connections.value.map {
+            _connections.value = _connections.value.map { 
                 if (it.id == connection.id) {
                     it.copy(
                         isConnected = success,
@@ -137,7 +141,7 @@ class ConnectionsViewModel : ViewModel() {
                         xrayVersion = xrayVer,
                         pingMs = if (success) measuredPing else null
                     )
-                } else it
+                } else it 
             }
             persistConnections(context)
             _isLoading.value = false

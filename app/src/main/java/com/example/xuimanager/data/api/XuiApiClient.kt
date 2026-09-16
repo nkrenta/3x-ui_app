@@ -176,6 +176,7 @@ class XuiApiClient private constructor(
 
     suspend fun login(): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
+            // 1. Авторизация по API Токену (если токен указан)
             if (connection.token.isNotBlank()) {
                 val infoRes = getPanelInfo()
                 if (infoRes.isSuccess) {
@@ -185,6 +186,16 @@ class XuiApiClient private constructor(
                 if (inboundsRes.isSuccess) {
                     return@withContext Result.success(true)
                 }
+                // Если токен указан, но имя пользователя не заполнено — возвращаем понятную ошибку по токену
+                if (connection.username.isBlank()) {
+                    val errMsg = infoRes.exceptionOrNull()?.message ?: "Неверный или недействительный API Токен"
+                    return@withContext Result.failure(Exception(errMsg))
+                }
+            }
+
+            // 2. Если токен не указан или не сработал, и имя пользователя не заполнено
+            if (connection.username.isBlank()) {
+                return@withContext Result.failure(Exception("Укажите API Токен или Логин с Паролем для подключения"))
             }
 
             try {
@@ -224,7 +235,7 @@ class XuiApiClient private constructor(
                 formResponse.code() == 404 -> "Ошибка 404 Not Found: Неверный путь к панели"
                 formResponse.body()?.msg != null -> formResponse.body()!!.msg
                 jsonResponse.body()?.msg != null -> jsonResponse.body()!!.msg
-                else -> "Ошибка подключения (HTTP ${formResponse.code()})"
+                else -> "Неверный логин или пароль (HTTP ${formResponse.code()})"
             }
             Result.failure(Exception(errorMsg))
         } catch (e: Exception) {
