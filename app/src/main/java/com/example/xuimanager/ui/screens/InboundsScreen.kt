@@ -1,22 +1,36 @@
 package com.example.xuimanager.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,6 +51,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,6 +65,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
@@ -74,7 +94,6 @@ import com.example.xuimanager.ui.theme.stringRes
 import com.example.xuimanager.ui.viewmodel.ConnectionsViewModel
 import com.example.xuimanager.ui.viewmodel.InboundsViewModel
 import com.example.xuimanager.ui.viewmodel.UsersViewModel
-import java.util.Locale
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,6 +114,11 @@ fun InboundsScreen(
     var showServerMenu by remember { mutableStateOf(false) }
     var viewingInboundDetails by remember { mutableStateOf<Inbound?>(null) }
 
+    val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val topContentPadding = statusBarTopPadding + 68.dp
+    val bottomContentPadding = navBarBottomPadding + 80.dp
+
     LaunchedEffect(Unit) {
         connectionsViewModel.initPersistence(context)
     }
@@ -111,151 +135,17 @@ fun InboundsScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkBackground)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. ВЕРХНИЙ БАР: Заголовок "Подключения" + Селектор серверов (без окантовки) + Кнопка Обновить
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                stringRes("inbounds"),
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Селектор серверов (без окантовки, цвет фона совпадает с фоном приложения)
-                Box {
-                    Card(
-                        onClick = { showServerMenu = true },
-                        colors = CardDefaults.cardColors(containerColor = DarkBackground),
-                        border = null,
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Cloud,
-                                contentDescription = "",
-                                tint = AccentCyan,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                selectedConnection?.name ?: "Выберите сервер",
-                                color = TextPrimary,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Icon(
-                                Icons.Default.ArrowDropDown,
-                                contentDescription = "",
-                                tint = TextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    DropdownMenu(
-                        expanded = showServerMenu,
-                        onDismissRequest = { showServerMenu = false },
-                        modifier = Modifier
-                            .background(DarkCardBg)
-                            .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
-                    ) {
-                        connections.forEach { conn ->
-                            DropdownMenuItem(
-                                text = { Text(conn.name, color = TextPrimary, fontSize = 13.sp) },
-                                onClick = {
-                                    selectedConnection = conn
-                                    showServerMenu = false
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Cloud,
-                                        contentDescription = "",
-                                        tint = if (selectedConnection?.id == conn.id) AccentCyan else TextSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Кнопка Обновить
-                IconButton(
-                    onClick = {
-                        selectedConnection?.let { inboundsViewModel.loadInbounds(context) }
-                    },
-                    enabled = !isLoading,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    if (isLoading) {
-                        Box(modifier = Modifier.size(18.dp)) {
-                            CircularProgressIndicator(
-                                color = AccentCyan,
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                        }
-                    } else {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Обновить",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        error?.let { err ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = RedStatus.copy(alpha = 0.2f)),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Warning,
-                        contentDescription = "",
-                        tint = RedStatus,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(err, color = RedStatus, fontSize = 12.sp)
-                }
-            }
-        }
-
-        // 2. Список подключений (Inbound Cards)
+        // 1. СПИСОК ПОДКЛЮЧЕНИЙ (Карточки скроллятся под плавающей неподвижной шапкой и поднимаются над нижней панелью)
         if (inbounds.isEmpty() && !isLoading) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
+                    .fillMaxSize()
+                    .padding(top = topContentPadding, bottom = bottomContentPadding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -280,12 +170,190 @@ fun InboundsScreen(
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 14.dp,
+                    end = 14.dp,
+                    top = topContentPadding,
+                    bottom = bottomContentPadding
+                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                error?.let { err ->
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = RedStatus.copy(alpha = 0.2f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = "",
+                                    tint = RedStatus,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(err, color = RedStatus, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+
                 items(inbounds) { inbound ->
                     InboundCard(
                         inbound = inbound,
+                        onToggle = {
+                            inboundsViewModel.toggleInbound(context, inbound)
+                        },
                         onClick = { viewingInboundDetails = inbound }
                     )
+                }
+            }
+        }
+
+        // 2. НЕПОДВИЖНАЯ ПЛАВАЮЩАЯ ШАПКА ВВЕРХУ (Floating Top Glass Bar)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        clip = false,
+                        ambientColor = Color.Black,
+                        spotColor = Color.Black
+                    ),
+                color = DarkCardBg.copy(alpha = 0.92f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color(0x33FFFFFF))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringRes("inbounds"),
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(0.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Селектор серверов (прозрачный)
+                        Box {
+                            Card(
+                                onClick = { showServerMenu = true },
+                                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                                border = null,
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 0.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Cloud,
+                                        contentDescription = "",
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        selectedConnection?.name ?: "Выберите сервер",
+                                        color = TextPrimary,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.width(1.dp))
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = "",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = showServerMenu,
+                                onDismissRequest = { showServerMenu = false },
+                                modifier = Modifier
+                                    .background(DarkCardBg)
+                                    .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
+                            ) {
+                                connections.forEach { conn ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                conn.name,
+                                                color = TextPrimary,
+                                                fontSize = 13.sp
+                                            )
+                                        },
+                                        onClick = {
+                                            selectedConnection = conn
+                                            showServerMenu = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.Cloud,
+                                                contentDescription = "",
+                                                tint = if (selectedConnection?.id == conn.id) AccentCyan else TextSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Кнопка Обновить
+                        IconButton(
+                            onClick = {
+                                selectedConnection?.let { inboundsViewModel.loadInbounds(context) }
+                            },
+                            enabled = !isLoading,
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            if (isLoading) {
+                                Box(modifier = Modifier.size(16.dp)) {
+                                    CircularProgressIndicator(
+                                        color = AccentCyan,
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            } else {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Обновить",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -307,33 +375,46 @@ fun InboundsScreen(
 @Composable
 fun InboundCard(
     inbound: Inbound,
+    onToggle: () -> Unit = {},
     onClick: () -> Unit = {}
 ) {
+    val isEnable = inbound.enable
     val secRaw = inbound.getSecurityType().uppercase()
-    val secLabel = if (secRaw.isBlank() || secRaw == "NONE") "-" else secRaw
-    val secBgColor = when (secLabel) {
+    val secDisplay = when {
+        secRaw == "REALITY" -> "REALITY"
+        secRaw == "TLS" -> "TLS"
+        else -> "NONE"
+    }
+
+    val secBgColor = when (secDisplay) {
         "REALITY" -> GreenStatus.copy(alpha = 0.2f)
         "TLS" -> YellowStatus.copy(alpha = 0.2f)
-        else -> DarkCardBorder
+        else -> RedStatus.copy(alpha = 0.2f)
     }
-    val secTextColor = when (secLabel) {
+
+    val secTextColor = when (secDisplay) {
         "REALITY" -> GreenStatus
         "TLS" -> YellowStatus
-        else -> TextSecondary
+        else -> RedStatus
     }
+
+    val cardBorderColor = if (isEnable) GreenStatus.copy(alpha = 0.35f) else DarkCardBorder
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, DarkCardBorder, RoundedCornerShape(10.dp)),
+            .border(1.dp, cardBorderColor, RoundedCornerShape(14.dp)),
         colors = CardDefaults.cardColors(containerColor = DarkCardBg),
+        shape = RoundedCornerShape(14.dp),
         onClick = onClick
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .animateContentSize(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // РЯД 1: Безопасность + Название + Статус
+            // ШАПКА КАРТОЧКИ: Бейдж безопасности слева + Текст по центру + Маленький тумблер справа
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -343,118 +424,138 @@ fun InboundCard(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Бейдж безопасности (REALITY - зеленый, TLS - желтый)
+                    // Слева: Бейдж безопасности (REALITY - зеленый, TLS - желтый, NONE - красный)
                     Box(
                         modifier = Modifier
                             .background(secBgColor, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .border(1.dp, secTextColor.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            secLabel,
+                            secDisplay,
                             color = secTextColor,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
+                    // По центру: Заголовок подключения
                     Text(
                         inbound.remark ?: "Inbound #${inbound.id}",
                         color = TextPrimary,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                     )
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
-                // Бейдж статуса
-                Box(
-                    modifier = Modifier
-                        .background(
-                            if (inbound.enable) GreenStatus.copy(alpha = 0.15f) else RedStatus.copy(
-                                alpha = 0.15f
-                            ),
-                            RoundedCornerShape(10.dp)
-                        )
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                // Справа: Компактный тумблер переключателя
+                Switch(
+                    checked = isEnable,
+                    onCheckedChange = { onToggle() },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = GreenStatus,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = DarkCardBorder
+                    ),
+                    modifier = Modifier.scale(0.68f)
+                )
+            }
+
+            // ПЛАВНО РАЗВОРАЧИВАЕМЫЙ БЛОК ПАРАМЕТРОВ (АККОРДЕОН)
+            AnimatedVisibility(
+                visible = isEnable,
+                enter = expandVertically(
+                    animationSpec = tween(
+                        300,
+                        easing = FastOutSlowInEasing
+                    )
+                ) + fadeIn(tween(250)),
+                exit = shrinkVertically(
+                    animationSpec = tween(
+                        300,
+                        easing = FastOutSlowInEasing
+                    )
+                ) + fadeOut(tween(200))
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 3.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .background(
-                                    if (inbound.enable) GreenStatus else RedStatus,
-                                    CircleShape
-                                )
+                    HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
+
+                    // РЯД 1: Поток, Протокол, Порт, Клиентов
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        InboundCompactParam(
+                            "Поток",
+                            inbound.getNetworkType().uppercase(),
+                            Modifier.weight(1f)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            if (inbound.enable) stringRes("active") else stringRes("disabled"),
-                            color = if (inbound.enable) GreenStatus else RedStatus,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                        InboundCompactParam(
+                            "Протокол",
+                            inbound.protocol?.uppercase() ?: "VLESS",
+                            Modifier.weight(1f)
+                        )
+                        InboundCompactParam(
+                            "Порт",
+                            "${inbound.port}",
+                            Modifier.weight(1f),
+                            isMono = true
+                        )
+                        InboundCompactParam(
+                            "Клиентов",
+                            "${inbound.clientStats?.size ?: 0}",
+                            Modifier.weight(1f),
+                            isMono = true
                         )
                     }
-                }
-            }
 
-            HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
+                    HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
 
-            // РЯД 2: Поток, Протокол, Порт, Клиентов
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                InboundCompactParam(
-                    "Поток",
-                    inbound.getNetworkType().uppercase(),
-                    Modifier.weight(1f)
-                )
-                InboundCompactParam(
-                    "Протокол",
-                    inbound.protocol?.uppercase() ?: "VLESS",
-                    Modifier.weight(1f)
-                )
-                InboundCompactParam("Порт", "${inbound.port}", Modifier.weight(1f), isMono = true)
-                InboundCompactParam(
-                    "Клиентов",
-                    "${inbound.clientStats?.size ?: 0}",
-                    Modifier.weight(1f),
-                    isMono = true
-                )
-            }
-
-            HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
-
-            // РЯД 3: Маскировка Target
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        "Маскировка (Target)",
-                        color = TextSecondary,
-                        fontSize = 10.sp,
-                        style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                    )
-                    Text(
-                        inbound.getRealityTarget(),
-                        color = TextPrimary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                    )
+                    // РЯД 2: Маскировка Target
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                "Маскировка (Target)",
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                style = TextStyle(
+                                    platformStyle = PlatformTextStyle(
+                                        includeFontPadding = false
+                                    )
+                                )
+                            )
+                            Text(
+                                inbound.getRealityTarget(),
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = TextStyle(
+                                    platformStyle = PlatformTextStyle(
+                                        includeFontPadding = false
+                                    )
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -513,7 +614,7 @@ fun InboundDetailsDialog(
                 InboundDetailRow("Протокол (protocol)", inbound.protocol?.uppercase() ?: "VLESS")
                 InboundDetailRow(
                     "Статус доступа (enable)",
-                    if (inbound.enable) "Активен (true)" else "Отключен (false)"
+                    if (inbound.enable) "🟢 Активен" else "🔴 Отключен"
                 )
 
                 HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
@@ -587,7 +688,7 @@ fun InboundDetailsDialog(
 
                 HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
 
-                // 3. НАСТРОЙКИ ПОТОКА (В виде структурированных текстовых параметров)
+                // 3. НАСТРОЙКИ ПОТОКА (В виде структурированных текстовых параметров с уменьшенным шрифтом)
                 Text(
                     "Настройки потока (streamSettings)",
                     color = TextPrimary,
@@ -618,7 +719,7 @@ fun InboundDetailsDialog(
                 )
                 InboundDetailRow(
                     "Статус сниффинга",
-                    if (inbound.isSniffingEnabled()) "🟢 Включен (true)" else "🔴 Выключен (false)"
+                    if (inbound.isSniffingEnabled()) "🟢 Включен" else "🔴 Выключен"
                 )
             }
         },
@@ -647,7 +748,7 @@ fun InboundDetailRow(label: String, value: String) {
         Text(
             value,
             color = TextPrimary,
-            fontSize = 11.sp,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = GeistMonoFontFamily,
             maxLines = 1,
@@ -679,20 +780,5 @@ fun InboundCompactParam(
             fontFamily = if (isMono) GeistMonoFontFamily else GeistFontFamily,
             style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
         )
-    }
-}
-
-private fun formatBytes(bytes: Long): String {
-    return when {
-        bytes <= 0 -> "0 B"
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> String.format(Locale.US, "%.2f KB", bytes.toDouble() / 1024.0)
-        bytes < 1024 * 1024 * 1024 -> String.format(
-            Locale.US,
-            "%.2f MB",
-            bytes.toDouble() / (1024.0 * 1024.0)
-        )
-
-        else -> String.format(Locale.US, "%.2f GB", bytes.toDouble() / (1024.0 * 1024.0 * 1024.0))
     }
 }

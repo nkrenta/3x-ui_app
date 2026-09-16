@@ -11,6 +11,7 @@ import com.example.xuimanager.data.api.model.PanelInfo
 import com.example.xuimanager.data.api.model.SystemStats
 import com.example.xuimanager.data.model.PanelConnection
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -490,6 +491,29 @@ class XuiApiClient private constructor(
             Result.failure(Exception(errMsg))
         } catch (e: Exception) {
             val msg = e.localizedMessage ?: e.message ?: "Неизвестная ошибка добавления инбаунда"
+            Result.failure(Exception(msg))
+        }
+    }
+
+    suspend fun setInboundEnable(id: Int, enable: Boolean): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val body = JsonObject()
+                body.addProperty("enable", enable)
+
+                val res1 = service.setInboundEnableApi(id, body)
+                if (res1.isSuccessful && res1.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                val res2 = service.setInboundEnableLegacy(id, body)
+                if (res2.isSuccessful && res2.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                val code = if (!res1.isSuccessful) res1.code() else res2.code()
+                Result.failure(Exception("HTTP $code"))
+            } catch (e: Exception) {
+                val msg =
+                    e.localizedMessage ?: e.message ?: "Ошибка изменения состояния подключения"
             Result.failure(Exception(msg))
         }
     }

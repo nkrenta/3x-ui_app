@@ -9,17 +9,23 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,10 +55,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -66,7 +72,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -95,6 +103,7 @@ import com.example.xuimanager.ui.viewmodel.ConnectionsViewModel
 import com.example.xuimanager.ui.viewmodel.UsersViewModel
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -110,6 +119,7 @@ fun UsersScreen(
     val clients by viewModel.clients.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val highlightedClientId by viewModel.highlightedClientId.collectAsState()
 
     val connections by connectionsViewModel.connections.collectAsState()
     val context = LocalContext.current
@@ -119,6 +129,11 @@ fun UsersScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingClient by remember { mutableStateOf<ApiClient?>(null) }
     var qrContent by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+    val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val topContentPadding = statusBarTopPadding + 68.dp
+    val bottomContentPadding = navBarBottomPadding + 96.dp
 
     LaunchedEffect(Unit) {
         connectionsViewModel.initPersistence(context)
@@ -136,171 +151,24 @@ fun UsersScreen(
         }
     }
 
-    Column(
+    LaunchedEffect(highlightedClientId) {
+        if (highlightedClientId != null) {
+            delay(2500)
+            viewModel.clearHighlight()
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkBackground)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. ВЕРХНИЙ ЗАГОЛОВОК
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                stringRes("users"),
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text("Управление клиентами и подписками", color = TextSecondary, fontSize = 11.sp)
-        }
-
-        // 2. СЕКЦИЯ УПРАВЛЕНИЯ: Селектор серверов (слева) + Обновить и Добавить (справа)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Селектор серверов
-            Box {
-                Card(
-                    onClick = { showServerMenu = true },
-                    colors = CardDefaults.cardColors(containerColor = DarkCardBg),
-                    border = BorderStroke(1.dp, DarkCardBorder),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Cloud,
-                            contentDescription = "",
-                            tint = AccentCyan,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            selectedConnection?.name ?: "Выберите сервер",
-                            color = TextPrimary,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = "",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                DropdownMenu(
-                    expanded = showServerMenu,
-                    onDismissRequest = { showServerMenu = false },
-                    modifier = Modifier
-                        .background(DarkCardBg)
-                        .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
-                ) {
-                    connections.forEach { conn ->
-                        DropdownMenuItem(
-                            text = { Text(conn.name, color = TextPrimary, fontSize = 13.sp) },
-                            onClick = {
-                                selectedConnection = conn
-                                showServerMenu = false
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Cloud,
-                                    contentDescription = "",
-                                    tint = if (selectedConnection?.id == conn.id) AccentCyan else TextSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Кнопка Обновить
-                IconButton(
-                    onClick = {
-                        selectedConnection?.let { viewModel.loadAllClients(context) }
-                    },
-                    enabled = !isLoading,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    if (isLoading) {
-                        Box(modifier = Modifier.size(18.dp)) {
-                            CircularProgressIndicator(
-                                color = AccentCyan,
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                        }
-                    } else {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Обновить",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                // Кнопка Добавить клиента
-                Button(
-                    onClick = { editingClient = null; showAddDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringRes("add"), color = Color.White, fontSize = 12.sp)
-                }
-            }
-        }
-
-        error?.let { err ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = RedStatus.copy(alpha = 0.2f)),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Warning,
-                        contentDescription = "",
-                        tint = RedStatus,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(err, color = RedStatus, fontSize = 12.sp)
-                }
-            }
-        }
-
-        // 3. Список клиентов (Client Cards)
+        // 1. СПИСОК КЛИЕНТОВ (Карточки скроллятся под парящей неподвижной шапкой)
         if (clients.isEmpty() && !isLoading) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
+                    .fillMaxSize()
+                    .padding(top = topContentPadding, bottom = bottomContentPadding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -325,10 +193,47 @@ fun UsersScreen(
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 14.dp,
+                    end = 14.dp,
+                    top = topContentPadding,
+                    bottom = bottomContentPadding
+                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                error?.let { err ->
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = RedStatus.copy(alpha = 0.2f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = "",
+                                    tint = RedStatus,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(err, color = RedStatus, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+
                 items(clients) { client ->
+                    val isHighlightedCard = highlightedClientId != null &&
+                            (client.uuid == highlightedClientId || client.getIdAsString() == highlightedClientId)
+
                     StitchClientCard(
                         client = client,
+                        isHighlightedCard = isHighlightedCard,
                         onEdit = { editingClient = client; showAddDialog = true },
                         onDelete = { viewModel.deleteClient(context, client.getIdAsString()) },
                         onToggle = { viewModel.toggleClient(context, client) },
@@ -392,6 +297,175 @@ fun UsersScreen(
                 }
             }
         }
+
+        // 2. НЕПОДВИЖНАЯ ПЛАВАЮЩАЯ ШАПКА ВВЕРХУ (Floating Top Glass Bar)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        clip = false,
+                        ambientColor = Color.Black,
+                        spotColor = Color.Black
+                    ),
+                color = DarkCardBg.copy(alpha = 0.92f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color(0x33FFFFFF))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringRes("users"),
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 1. Селектор серверов (прозрачный без окантовки)
+                        Box {
+                            Card(
+                                onClick = { showServerMenu = true },
+                                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                                border = null,
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(
+                                        start = 2.dp,
+                                        end = 0.dp,
+                                        top = 4.dp,
+                                        bottom = 4.dp
+                                    ),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Cloud,
+                                        contentDescription = "",
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        selectedConnection?.name ?: "Выберите сервер",
+                                        color = TextPrimary,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.width(1.dp))
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = "",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = showServerMenu,
+                                onDismissRequest = { showServerMenu = false },
+                                modifier = Modifier
+                                    .background(DarkCardBg)
+                                    .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
+                            ) {
+                                connections.forEach { conn ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                conn.name,
+                                                color = TextPrimary,
+                                                fontSize = 13.sp
+                                            )
+                                        },
+                                        onClick = {
+                                            selectedConnection = conn
+                                            showServerMenu = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.Cloud,
+                                                contentDescription = "",
+                                                tint = if (selectedConnection?.id == conn.id) AccentCyan else TextSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Отступ 2.dp до кнопки обновления
+                        Spacer(modifier = Modifier.width(2.dp))
+
+                        // 2. Компактная кнопка Обновить (28.dp x 28.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable(enabled = !isLoading) {
+                                    selectedConnection?.let { viewModel.loadAllClients(context) }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = AccentCyan,
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Обновить",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        // Отступ 1.dp до квадратной кнопки добавления
+                        Spacer(modifier = Modifier.width(1.dp))
+
+                        // 3. Квадратная синяя кнопка Добавить (28.dp x 28.dp - точно такого же размера!)
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(AccentBlue)
+                                .clickable { editingClient = null; showAddDialog = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Добавить пользователя",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (showAddDialog) {
@@ -419,6 +493,7 @@ fun UsersScreen(
 @Composable
 fun StitchClientCard(
     client: ApiClient,
+    isHighlightedCard: Boolean = false,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onToggle: () -> Unit,
@@ -433,11 +508,18 @@ fun StitchClientCard(
         if (limitBytes > 0) ((totalUsedBytes.toDouble() / limitBytes.toDouble()) * 100).toInt()
             .coerceIn(0, 100) else 0
 
+    val cardBorderColor = if (isHighlightedCard) AccentCyan else DarkCardBorder
+    val cardContainerColor = if (isHighlightedCard) AccentCyan.copy(alpha = 0.18f) else DarkCardBg
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, DarkCardBorder, RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(containerColor = DarkCardBg)
+            .border(
+                if (isHighlightedCard) 2.dp else 1.dp,
+                cardBorderColor,
+                RoundedCornerShape(12.dp)
+            ),
+        colors = CardDefaults.cardColors(containerColor = cardContainerColor)
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -535,7 +617,7 @@ fun StitchClientCard(
 
             HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
 
-            // 2. Индикатор Трафика (Шкала и счетчики с отступом 2-3 dp)
+            // 2. Индикатор Трафика (Шкала и счетчики)
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -591,7 +673,7 @@ fun StitchClientCard(
 
             HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
 
-            // 3. Дополнительные параметры (Sub ID + Срок действия c отступом 2-3 dp)
+            // 3. Дополнительные параметры (Sub ID + Срок действия)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1034,7 +1116,6 @@ private fun formatBytes(bytes: Long): String {
             "%.2f MB",
             bytes.toDouble() / (1024.0 * 1024.0)
         )
-
         else -> String.format(Locale.US, "%.2f GB", bytes.toDouble() / (1024.0 * 1024.0 * 1024.0))
     }
 }

@@ -28,6 +28,20 @@ class InboundsViewModel : ViewModel() {
         loadInbounds(context)
     }
 
+    fun toggleInbound(context: Context, inbound: Inbound) {
+        currentConnection?.let { connection ->
+            viewModelScope.launch {
+                repository.toggleInbound(context, connection, inbound.id, !inbound.enable)
+                    .onSuccess {
+                        loadInbounds(context)
+                    }
+                    .onFailure { e ->
+                        _error.value = e.localizedMessage
+                    }
+            }
+        }
+    }
+
     fun loadInbounds(context: Context) {
         currentConnection?.let { connection ->
             _isLoading.value = true

@@ -97,6 +97,19 @@ interface XuiApiService {
     @POST("panel/api/inbounds/list")
     suspend fun getInboundsListApiPost(): Response<InboundListResponse>
 
+    // Toggle Inbound Enable Status
+    @POST("panel/api/inbounds/setEnable/{id}")
+    suspend fun setInboundEnableApi(
+        @Path("id") id: Int,
+        @Body body: JsonObject
+    ): Response<GenericResponse>
+
+    @POST("panel/inbound/setEnable/{id}")
+    suspend fun setInboundEnableLegacy(
+        @Path("id") id: Int,
+        @Body body: JsonObject
+    ): Response<GenericResponse>
+
     // Legacy Inbounds Add
     @POST("panel/inbound/list")
     suspend fun getInbounds(): Response<InboundListResponse>

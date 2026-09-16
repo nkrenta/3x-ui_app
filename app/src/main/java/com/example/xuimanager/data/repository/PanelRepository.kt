@@ -96,6 +96,21 @@ class PanelRepository {
             }
         }
 
+    suspend fun toggleInbound(
+        context: Context,
+        connection: PanelConnection,
+        inboundId: Int,
+        enable: Boolean
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        val loginResult = client.login()
+        if (loginResult.isFailure) {
+            Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
+        } else {
+            client.setInboundEnable(inboundId, enable)
+        }
+    }
+
     suspend fun getInboundsList(
         context: Context,
         connection: PanelConnection

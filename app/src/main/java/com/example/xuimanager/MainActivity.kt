@@ -3,6 +3,7 @@ package com.example.xuimanager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,7 +34,6 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -81,6 +81,7 @@ import com.example.xuimanager.ui.viewmodel.UsersViewModel
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
@@ -142,114 +143,15 @@ fun MainAppStructure(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "dashboard"
 
-    Scaffold(
-        containerColor = DarkBackground,
-        bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(62.dp)
-                        .shadow(
-                            elevation = 16.dp,
-                            shape = RoundedCornerShape(28.dp),
-                            clip = false,
-                            ambientColor = Color.Black,
-                            spotColor = Color.Black
-                        ),
-                    color = DarkCardBg.copy(alpha = 0.88f),
-                    shape = RoundedCornerShape(28.dp),
-                    border = BorderStroke(1.dp, Color(0x33FFFFFF))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 4.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        navItems.forEach { item ->
-                            val selected = currentRoute == item.route
-                            val label = stringRes(item.labelKey)
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .pointerInput(item.route) {
-                                        detectTapGestures(
-                                            onTap = {
-                                                if (currentRoute != item.route) {
-                                                    navController.navigate(item.route) {
-                                                        popUpTo(navController.graph.findStartDestination().id) {
-                                                            saveState = true
-                                                        }
-                                                        launchSingleTop = true
-                                                    }
-                                                }
-                                            },
-                                            onLongPress = {
-                                                Toast.makeText(context, label, Toast.LENGTH_SHORT)
-                                                    .show()
-                                            }
-                                        )
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight(0.88f)
-                                        .fillMaxWidth(0.88f)
-                                        .background(
-                                            if (selected) AccentBlue.copy(alpha = 0.28f) else Color.Transparent,
-                                            shape = RoundedCornerShape(18.dp)
-                                        )
-                                        .border(
-                                            if (selected) 1.dp else 0.dp,
-                                            if (selected) AccentCyan.copy(alpha = 0.5f) else Color.Transparent,
-                                            shape = RoundedCornerShape(18.dp)
-                                        )
-                                        .padding(vertical = 3.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        if (selected) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(4.dp)
-                                                    .background(AccentCyan, CircleShape)
-                                            )
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                        }
-
-                                        Icon(
-                                            imageVector = item.icon,
-                                            contentDescription = label,
-                                            tint = if (selected) AccentCyan else TextSecondary,
-                                            modifier = Modifier.size(26.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    ) { paddingValues ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBackground)
+    ) {
         NavHost(
             navController = navController,
             startDestination = "dashboard",
-            modifier = Modifier.padding(paddingValues),
+            modifier = Modifier.fillMaxSize(),
             enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(220)) { it / 6 } },
             exitTransition = { fadeOut(tween(220)) + slideOutHorizontally(tween(220)) { -it / 6 } },
             popEnterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(220)) { -it / 6 } },
@@ -299,6 +201,108 @@ fun MainAppStructure(
                     settingsViewModel = settingsViewModel,
                     templatesViewModel = templatesViewModel
                 )
+            }
+        }
+
+        // Парящая панель вкладок (Островок парит над фоном с прокруткой контента под ним)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(62.dp)
+                    .shadow(
+                        elevation = 16.dp,
+                        shape = RoundedCornerShape(28.dp),
+                        clip = false,
+                        ambientColor = Color.Black,
+                        spotColor = Color.Black
+                    ),
+                color = DarkCardBg.copy(alpha = 0.88f),
+                shape = RoundedCornerShape(28.dp),
+                border = BorderStroke(1.dp, Color(0x33FFFFFF))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    navItems.forEach { item ->
+                        val selected = currentRoute == item.route
+                        val label = stringRes(item.labelKey)
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .pointerInput(item.route) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            if (currentRoute != item.route) {
+                                                navController.navigate(item.route) {
+                                                    popUpTo(navController.graph.findStartDestination().id) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                }
+                                            }
+                                        },
+                                        onLongPress = {
+                                            Toast.makeText(context, label, Toast.LENGTH_SHORT)
+                                                .show()
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight(0.88f)
+                                    .fillMaxWidth(0.88f)
+                                    .background(
+                                        if (selected) AccentBlue.copy(alpha = 0.28f) else Color.Transparent,
+                                        shape = RoundedCornerShape(18.dp)
+                                    )
+                                    .border(
+                                        if (selected) 1.dp else 0.dp,
+                                        if (selected) AccentCyan.copy(alpha = 0.5f) else Color.Transparent,
+                                        shape = RoundedCornerShape(18.dp)
+                                    )
+                                    .padding(vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    if (selected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(4.dp)
+                                                .background(AccentCyan, CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                    }
+
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = label,
+                                        tint = if (selected) AccentCyan else TextSecondary,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
