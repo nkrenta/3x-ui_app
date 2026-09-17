@@ -96,6 +96,35 @@ class PanelRepository {
             }
         }
 
+    suspend fun toggleInbound(
+        context: Context,
+        connection: PanelConnection,
+        inboundId: Int,
+        enable: Boolean
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        val loginResult = client.login()
+        if (loginResult.isFailure) {
+            Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
+        } else {
+            client.setInboundEnable(inboundId, enable)
+        }
+    }
+
+    suspend fun getInboundsList(
+        context: Context,
+        connection: PanelConnection
+    ): Result<List<Inbound>> =
+        withContext(Dispatchers.IO) {
+            val client = XuiApiClient.getInstance(context, connection)
+            val loginResult = client.login()
+            if (loginResult.isFailure) {
+                Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
+            } else {
+                client.getInboundsList()
+            }
+        }
+
     suspend fun getInbounds(context: Context, connection: PanelConnection): Result<List<Inbound>> =
         withContext(Dispatchers.IO) {
             val client = XuiApiClient.getInstance(context, connection)
@@ -118,6 +147,19 @@ class PanelRepository {
             Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
         } else {
             apiClient.addInboundJson(rawJson)
+        }
+    }
+
+    suspend fun getClientsList(
+        context: Context,
+        connection: PanelConnection
+    ): Result<List<ApiClient>> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        val loginResult = client.login()
+        if (loginResult.isFailure) {
+            Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
+        } else {
+            client.getClientsList()
         }
     }
 
@@ -176,15 +218,15 @@ class PanelRepository {
             Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
         } else {
             val settingsItem = ClientSettingsItem(
-                id = client.id ?: "",
+                id = client.getIdAsString(),
                 email = client.email ?: "",
                 flow = client.flow,
-                limitIp = 0,
-                totalGb = client.total,
-                expiryTime = client.expiryTime,
+                limitIp = client.limitIp,
+                totalGb = client.getTotalTrafficLimit(),
+                expiryTime = client.getEffectiveExpiryTime(),
                 enable = !client.enable
             )
-            apiClient.updateClient(client.id ?: "", settingsItem)
+            apiClient.updateClient(client.getIdAsString(), settingsItem)
         }
     }
 

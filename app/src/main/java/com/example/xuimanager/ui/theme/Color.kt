@@ -10,4 +10,5 @@ val AccentCyan = Color(0xFF58A6FF)         // Дополнительный го�
 val TextPrimary = Color(0xFFF0F6FC)        // Белый текст
 val TextSecondary = Color(0xFF8B949E)      // Серый текст
 val GreenStatus = Color(0xFF3FB950)        // Зеленый (Xray Запущен)
+val YellowStatus = Color(0xFFF59E0B)       // Желтый (Warning / TLS)
 val RedStatus = Color(0xFFF85149)          // Красный (Ошибка / Стоп)

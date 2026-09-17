@@ -90,6 +90,26 @@ interface XuiApiService {
         @Body body: JsonObject
     ): Response<GenericResponse>
 
+    // Inbounds List REST API v2.x (/panel/api/inbounds/list)
+    @GET("panel/api/inbounds/list")
+    suspend fun getInboundsListApiGet(): Response<InboundListResponse>
+
+    @POST("panel/api/inbounds/list")
+    suspend fun getInboundsListApiPost(): Response<InboundListResponse>
+
+    // Toggle Inbound Enable Status
+    @POST("panel/api/inbounds/setEnable/{id}")
+    suspend fun setInboundEnableApi(
+        @Path("id") id: Int,
+        @Body body: JsonObject
+    ): Response<GenericResponse>
+
+    @POST("panel/inbound/setEnable/{id}")
+    suspend fun setInboundEnableLegacy(
+        @Path("id") id: Int,
+        @Body body: JsonObject
+    ): Response<GenericResponse>
+
     // Legacy Inbounds Add
     @POST("panel/inbound/list")
     suspend fun getInbounds(): Response<InboundListResponse>
@@ -139,6 +159,13 @@ interface XuiApiService {
     ): Response<GenericResponse>
 
     // Clients
+    // Clients List
+    @GET("panel/api/clients/list")
+    suspend fun getClientsListApiGet(): Response<ClientListResponse>
+
+    @POST("panel/api/clients/list")
+    suspend fun getClientsListApiPost(): Response<ClientListResponse>
+
     @POST("panel/inbound/get/{id}")
     suspend fun getInboundClients(
         @Path("id") id: Int

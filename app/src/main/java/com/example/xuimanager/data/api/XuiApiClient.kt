@@ -11,6 +11,7 @@ import com.example.xuimanager.data.api.model.PanelInfo
 import com.example.xuimanager.data.api.model.SystemStats
 import com.example.xuimanager.data.model.PanelConnection
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -176,6 +177,7 @@ class XuiApiClient private constructor(
 
     suspend fun login(): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
+            // 1. Авторизация по API Токену (если токен указан)
             if (connection.token.isNotBlank()) {
                 val infoRes = getPanelInfo()
                 if (infoRes.isSuccess) {
@@ -185,6 +187,16 @@ class XuiApiClient private constructor(
                 if (inboundsRes.isSuccess) {
                     return@withContext Result.success(true)
                 }
+                // Если токен указан, но имя пользователя не заполнено — возвращаем понятную ошибку по токену
+                if (connection.username.isBlank()) {
+                    val errMsg = infoRes.exceptionOrNull()?.message ?: "Неверный или недействительный API Токен"
+                    return@withContext Result.failure(Exception(errMsg))
+                }
+            }
+
+            // 2. Если токен не указан или не сработал, и имя пользователя не заполнено
+            if (connection.username.isBlank()) {
+                return@withContext Result.failure(Exception("Укажите API Токен или Логин с Паролем для подключения"))
             }
 
             try {
@@ -224,7 +236,7 @@ class XuiApiClient private constructor(
                 formResponse.code() == 404 -> "Ошибка 404 Not Found: Неверный путь к панели"
                 formResponse.body()?.msg != null -> formResponse.body()!!.msg
                 jsonResponse.body()?.msg != null -> jsonResponse.body()!!.msg
-                else -> "Ошибка подключения (HTTP ${formResponse.code()})"
+                else -> "Неверный логин или пароль (HTTP ${formResponse.code()})"
             }
             Result.failure(Exception(errorMsg))
         } catch (e: Exception) {
@@ -479,6 +491,69 @@ class XuiApiClient private constructor(
             Result.failure(Exception(errMsg))
         } catch (e: Exception) {
             val msg = e.localizedMessage ?: e.message ?: "Неизвестная ошибка добавления инбаунда"
+            Result.failure(Exception(msg))
+        }
+    }
+
+    suspend fun setInboundEnable(id: Int, enable: Boolean): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val body = JsonObject()
+                body.addProperty("enable", enable)
+
+                val res1 = service.setInboundEnableApi(id, body)
+                if (res1.isSuccessful && res1.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                val res2 = service.setInboundEnableLegacy(id, body)
+                if (res2.isSuccessful && res2.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                val code = if (!res1.isSuccessful) res1.code() else res2.code()
+                Result.failure(Exception("HTTP $code"))
+            } catch (e: Exception) {
+                val msg =
+                    e.localizedMessage ?: e.message ?: "Ошибка изменения состояния подключения"
+            Result.failure(Exception(msg))
+        }
+    }
+
+    suspend fun getInboundsList(): Result<List<Inbound>> = withContext(Dispatchers.IO) {
+        try {
+            val res1 = service.getInboundsListApiGet()
+            if (res1.isSuccessful && res1.body()?.success == true && res1.body()?.obj != null) {
+                return@withContext Result.success(res1.body()!!.obj!!)
+            }
+            val res2 = service.getInboundsListApiPost()
+            if (res2.isSuccessful && res2.body()?.success == true && res2.body()?.obj != null) {
+                return@withContext Result.success(res2.body()!!.obj!!)
+            }
+            val legacyRes = getInbounds()
+            if (legacyRes.isSuccess) {
+                return@withContext legacyRes
+            }
+            val code = if (!res1.isSuccessful) res1.code() else res2.code()
+            Result.failure(Exception("HTTP $code"))
+        } catch (e: Exception) {
+            val msg = e.localizedMessage ?: e.message ?: "Ошибка получения списка инбаундов"
+            Result.failure(Exception(msg))
+        }
+    }
+
+    suspend fun getClientsList(): Result<List<ApiClient>> = withContext(Dispatchers.IO) {
+        try {
+            val res1 = service.getClientsListApiGet()
+            if (res1.isSuccessful && res1.body()?.success == true && res1.body()?.obj != null) {
+                return@withContext Result.success(res1.body()!!.obj!!)
+            }
+            val res2 = service.getClientsListApiPost()
+            if (res2.isSuccessful && res2.body()?.success == true && res2.body()?.obj != null) {
+                return@withContext Result.success(res2.body()!!.obj!!)
+            }
+            val code = if (!res1.isSuccessful) res1.code() else res2.code()
+            Result.failure(Exception("HTTP $code"))
+        } catch (e: Exception) {
+            val msg = e.localizedMessage ?: e.message ?: "Ошибка получения клиентов"
             Result.failure(Exception(msg))
         }
     }

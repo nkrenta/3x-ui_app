@@ -120,8 +120,13 @@ class ConnectionsViewModel : ViewModel() {
             var xrayVer: String? = connection.xrayVersion
 
             if (success) {
-                repository.fetchGeoLocation(connection.host)?.let { geoName ->
-                    updatedName = geoName
+                // Если название совпадает с IP/хостом или еще не содержит страну с флагом, запрашиваем и СОХРАНЯЕМ имя страны
+                if (connection.name == connection.host || connection.name.isBlank() || !connection.name.contains("(")) {
+                    repository.fetchGeoLocation(connection.host)?.let { geoName ->
+                        if (geoName.isNotBlank()) {
+                            updatedName = geoName
+                        }
+                    }
                 }
                 repository.getXrayVersion(context, connection).onSuccess { ver ->
                     xrayVer = ver
@@ -156,7 +161,11 @@ class ConnectionsViewModel : ViewModel() {
         }
     }
 
-    fun restartPanel(context: Context, connection: PanelConnection, onResult: (Boolean, String) -> Unit) {
+    fun restartPanel(
+        context: Context,
+        connection: PanelConnection,
+        onResult: (Boolean, String) -> Unit
+    ) {
         viewModelScope.launch {
             repository.restartPanel(context, connection)
                 .onSuccess { onResult(true, "Панель перезапускается...") }
@@ -164,7 +173,11 @@ class ConnectionsViewModel : ViewModel() {
         }
     }
 
-    fun restartXrayService(context: Context, connection: PanelConnection, onResult: (Boolean, String) -> Unit) {
+    fun restartXrayService(
+        context: Context,
+        connection: PanelConnection,
+        onResult: (Boolean, String) -> Unit
+    ) {
         viewModelScope.launch {
             repository.restartXrayService(context, connection)
                 .onSuccess { onResult(true, "Служба Xray перезапускается...") }

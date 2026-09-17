@@ -66,7 +66,8 @@ object Strings {
         "traffic" to "Трафик",
         "avg_period" to "СРЕДНЕЕ ЗА ПЕРИОД",
         "close" to "Закрыть",
-        "users" to "Пользователи",
+        "users" to "Клиенты",
+        "inbounds" to "Подключения",
         "templates" to "Шаблоны",
         "ssh" to "SSH",
         "settings" to "Настройки"
@@ -125,7 +126,8 @@ object Strings {
         "traffic" to "Traffic",
         "avg_period" to "AVG IO RATE",
         "close" to "Close",
-        "users" to "Users",
+        "users" to "Clients",
+        "inbounds" to "Connections",
         "templates" to "Templates",
         "ssh" to "SSH",
         "settings" to "Settings"

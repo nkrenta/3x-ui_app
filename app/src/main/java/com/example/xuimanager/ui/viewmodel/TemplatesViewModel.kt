@@ -328,8 +328,9 @@ class TemplatesViewModel : ViewModel() {
 
         try {
             val rootObj = JsonParser.parseString(template.rawJson).asJsonObject
+            val cleanRemark = template.name.replace(Regex("""^Подключение\s*№\d+:\s*"""), "").trim()
             rootObj.addProperty("enable", true)
-            rootObj.addProperty("remark", template.name)
+            rootObj.addProperty("remark", cleanRemark)
             rootObj.addProperty("port", generatedPort)
             rootObj.addProperty("tag", "in-$generatedPort-tcp")
 
