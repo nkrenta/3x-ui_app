@@ -1,517 +1,650 @@
 package com.example.xuimanager.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.xuimanager.data.api.model.PanelInfo
 import com.example.xuimanager.data.model.PanelConnection
-import com.example.xuimanager.ui.theme.AccentBlue
-import com.example.xuimanager.ui.theme.AccentCyan
-import com.example.xuimanager.ui.theme.DarkBackground
-import com.example.xuimanager.ui.theme.DarkCardBg
-import com.example.xuimanager.ui.theme.DarkCardBorder
-import com.example.xuimanager.ui.theme.GreenStatus
-import com.example.xuimanager.ui.theme.RedStatus
-import com.example.xuimanager.ui.theme.TextPrimary
-import com.example.xuimanager.ui.theme.TextSecondary
-import com.example.xuimanager.ui.theme.stringRes
+import com.example.xuimanager.ui.theme.*
 import com.example.xuimanager.ui.viewmodel.ConnectionsViewModel
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 fun DashboardScreen(
-    connectionsViewModel: ConnectionsViewModel = viewModel()
+    connectionsViewModel: ConnectionsViewModel = viewModel(),
+    selectedConnection: PanelConnection? = null
 ) {
     val connections by connectionsViewModel.connections.collectAsState()
     val context = LocalContext.current
 
-    var showAddDialog by remember { mutableStateOf(false) }
     var editingConnection by remember { mutableStateOf<PanelConnection?>(null) }
-    var viewingServerInfo by remember { mutableStateOf<PanelConnection?>(null) }
-    var testConnectionId by remember { mutableStateOf<String?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         connectionsViewModel.testAllConnections(context)
         connectionsViewModel.startAutoPingLoop(context)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkBackground)
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        // 1. ВЕРХНИЙ БАР: "Подключенные панели 3X-UI" + Кнопка "Добавить" + Кнопка "Обновить все"
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val topContentPadding = statusBarTopPadding + 68.dp
+    val bottomContentPadding = navBarBottomPadding + 96.dp
+
+    Box(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
+        // 1. СПИСОК СЕРВЕРОВ
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 14.dp, 
+                end = 14.dp, 
+                top = topContentPadding, 
+                bottom = bottomContentPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    stringRes("connected_panels_title"),
-                    color = TextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    stringRes("servers_subtitle"),
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+            items(connections) { node ->
+                ServerNodeCard(
+                    connection = node,
+                    isSelected = node.id == selectedConnection?.id,
+                    serverStats = connectionsViewModel.serverStats.collectAsState().value,
+                    onEditServer = {
+                        editingConnection = node
+                        showAddDialog = true
+                    },
+                    onDeleteServer = {
+                        connectionsViewModel.deleteConnection(node.id, context)
+                        Toast.makeText(context, "Сервер удален", Toast.LENGTH_SHORT).show()
+                    },
+                    onRestartXray = {
+                        connectionsViewModel.restartXrayService(context, node) { _, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onRestartPanel = {
+                        connectionsViewModel.restartPanel(context, node) { _, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onConsoleClick = {
+                        Toast.makeText(context, "Консоль ${node.name}", Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { connectionsViewModel.testAllConnections(context) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = stringRes("refresh_all"),
-                        tint = AccentCyan
-                    )
-                }
-
+            // Кнопка Добавить сервер
+            item {
                 Button(
                     onClick = { editingConnection = null; showAddDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    modifier = Modifier.height(34.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryContainer,
+                        contentColor = OnPrimary
+                    )
                 ) {
                     Icon(
                         Icons.Default.Add,
                         contentDescription = "",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringRes("add"), color = Color.White, fontSize = 12.sp)
-                }
-            }
-        }
-
-        // 2. Сводка активности серверов (Summary Bar)
-        val totalServers = connections.size
-        val onlineServers = connections.count { it.isConnected }
-        val offlineServers = totalServers - onlineServers
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            ServerSummaryItem(
-                stringRes("total_servers"),
-                "$totalServers",
-                Icons.Default.Dns,
-                AccentBlue,
-                Modifier.weight(1f)
-            )
-            ServerSummaryItem(
-                stringRes("online"),
-                "$onlineServers",
-                Icons.Default.CheckCircle,
-                GreenStatus,
-                Modifier.weight(1f)
-            )
-            ServerSummaryItem(
-                stringRes("offline"),
-                "$offlineServers",
-                Icons.Default.Error,
-                if (offlineServers > 0) RedStatus else TextSecondary,
-                Modifier.weight(1f)
-            )
-        }
-
-        // 3. Список серверов (Server Cards)
-        if (connections.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.Dns,
-                        contentDescription = "",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(54.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        stringRes("no_servers"),
-                        color = TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(stringRes("no_servers_sub"), color = TextSecondary, fontSize = 12.sp)
-                }
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                connections.forEach { connection ->
-                    StitchServerCard(
-                        connection = connection,
-                        isTesting = testConnectionId == connection.id,
-                        onTest = {
-                            testConnectionId = connection.id
-                            connectionsViewModel.testConnection(context, connection) {
-                                testConnectionId = null
-                            }
-                        },
-                        onRestartPanel = {
-                            connectionsViewModel.restartPanel(context, connection) { _, msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        onRestartXray = {
-                            connectionsViewModel.restartXrayService(context, connection) { _, msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        onEdit = {
-                            editingConnection = connection
-                            showAddDialog = true
-                        },
-                        onDelete = {
-                            connectionsViewModel.deleteConnection(connection.id)
-                        },
-                        onClick = {
-                            viewingServerInfo = connection
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    if (showAddDialog) {
-        ConnectionDialog(
-            connection = editingConnection,
-            onSave = { newConn ->
-                if (editingConnection != null) {
-                    connectionsViewModel.updateConnection(newConn)
-                } else {
-                    connectionsViewModel.addConnection(newConn)
-                }
-                showAddDialog = false
-                editingConnection = null
-            },
-            onDismiss = {
-                showAddDialog = false
-                editingConnection = null
-            }
-        )
-    }
-
-    viewingServerInfo?.let { connection ->
-        ServerDetailsDialog(
-            connection = connection,
-            onDismiss = { viewingServerInfo = null }
-        )
-    }
-}
-
-@Composable
-fun ServerSummaryItem(
-    title: String,
-    value: String,
-    icon: ImageVector,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.height(52.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCardBg),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, DarkCardBorder)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(icon, contentDescription = "", tint = color, modifier = Modifier.size(18.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
-            ) {
-                Text(
-                    title,
-                    color = TextSecondary,
-                    fontSize = 9.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                        lineHeight = 10.sp
-                    )
-                )
-                Text(
-                    value,
-                    color = TextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                        lineHeight = 16.sp
-                    )
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun PingBadge(pingMs: Int?) {
-    val pingColor = when {
-        pingMs == null -> TextSecondary
-        pingMs in 0..150 -> GreenStatus
-        pingMs in 151..500 -> Color(0xFFEAB308)
-        else -> RedStatus
-    }
-
-    val pingText = if (pingMs != null) "$pingMs ms" else "--- ms"
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            imageVector = Icons.Default.Bolt,
-            contentDescription = "Пинг",
-            tint = pingColor,
-            modifier = Modifier.size(16.dp)
-        )
-        Spacer(modifier = Modifier.width(2.dp))
-        Text(
-            pingText,
-            color = pingColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-fun StitchServerCard(
-    connection: PanelConnection,
-    isTesting: Boolean,
-    onTest: () -> Unit,
-    onRestartPanel: () -> Unit,
-    onRestartXray: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, DarkCardBorder, RoundedCornerShape(10.dp)),
-        colors = CardDefaults.cardColors(containerColor = DarkCardBg),
-        onClick = onClick
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Верхний уровень: Иконка облака + Имя сервера (без URL) + Статус онлайн
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Cloud,
-                        contentDescription = "",
-                        tint = AccentCyan,
                         modifier = Modifier.size(22.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Добавить сервер", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // 2. НЕПОДВИЖНАЯ ПЛАВАЮЩАЯ ШАПКА ВВЕРХУ (Без выпадающего меню)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        clip = false,
+                        ambientColor = Color.Black,
+                        spotColor = Color.Black
+                    ),
+                color = DarkCardBg.copy(alpha = 0.92f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color(0x33FFFFFF))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        connection.name,
+                        stringRes("dashboard"),
                         color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    // Кнопка Обновить (28.dp x 28.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable {
+                                connectionsViewModel.testAllConnections(context)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Обновить",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (showAddDialog) {
+            ConnectionDialog(
+                connection = editingConnection,
+                onSave = { newConn ->
+                    if (editingConnection != null) {
+                        connectionsViewModel.updateConnection(newConn, context)
+                    } else {
+                        connectionsViewModel.addConnection(newConn, context)
+                    }
+                    showAddDialog = false
+                    editingConnection = null
+                },
+                onDismiss = {
+                    showAddDialog = false
+                    editingConnection = null
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun ServerNodeCard(
+    connection: PanelConnection,
+    isSelected: Boolean,
+    serverStats: Map<String, PanelInfo>,
+    onEditServer: () -> Unit,
+    onDeleteServer: () -> Unit,
+    onRestartXray: () -> Unit,
+    onRestartPanel: () -> Unit,
+    onConsoleClick: () -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(isSelected) }
+    var showCopyMenu by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val clipboard = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
+
+    fun copyText(label: String, text: String) {
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+        Toast.makeText(context, "$label скопирован", Toast.LENGTH_SHORT).show()
+    }
+
+    val info = serverStats[connection.id]
+    val cpuValue = info?.cpu ?: 0.0
+    val cpuPercent =
+        if (cpuValue > 0.0 && cpuValue <= 1.0) (cpuValue * 100).toInt() else cpuValue.toInt()
+    val cpuFormatted = "$cpuPercent%"
+
+    val memTotal = info?.mem?.total ?: 1L
+    val memCurrent = info?.mem?.current ?: 0L
+    val memPercent =
+        if (memTotal > 0) ((memCurrent.toDouble() / memTotal.toDouble()) * 100).toFloat() else 0f
+
+    val diskTotal = info?.disk?.total ?: 1L
+    val diskCurrent = info?.disk?.current ?: 0L
+    val diskPercent =
+        if (diskTotal > 0) ((diskCurrent.toDouble() / diskTotal.toDouble()) * 100).toFloat() else 0f
+
+    // Удаляем флаг эмодзи из начала наименования для заголовка
+    val cleanTitle = connection.name
+        .replace(Regex("^[\\uD83C\\uDDE6-\\uD83C\\uDDFF]{2}\\s*"), "")
+        .trim()
+
+    val fullPath = connection.path.trim().trim('/')
+    val formattedPath = if (fullPath.isNotBlank()) "/$fullPath" else ""
+    val fullUrl = "${connection.protocol}://${connection.host}:${connection.port}$formattedPath"
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceContainer)
+            .clickable { isExpanded = !isExpanded }
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(SurfaceContainerHigh, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val flag = if (connection.name.startsWith("🇫🇮")) "🇫🇮"
+                    else if (connection.name.startsWith("🇩🇪")) "🇩🇪"
+                    else if (connection.name.startsWith("🇺🇸")) "🇺🇸"
+                    else if (connection.name.startsWith("🇳🇱")) "🇳🇱"
+                    else "☁️"
+                    Text(flag, fontSize = 18.sp)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        cleanTitle,
+                        color = Primary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
-
-                Spacer(modifier = Modifier.width(6.dp))
-
-                ConnectionStatusChip(isConnected = connection.isConnected)
-            }
-
-            HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
-
-            // Нижний уровень: Индикатор пинга + Кнопки управления (Инфо удалено)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Индикатор Пинга с цветовой кодировкой (0-150 зелёный, 150-500 жёлтый, 500+ красный)
-                PingBadge(pingMs = connection.pingMs)
-
-                // Ряд кнопок управления (без кнопки Инфо)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButtonWithTooltip(
-                        onClick = onTest,
-                        tooltipText = stringRes("test_connection"),
-                        enabled = !isTesting,
-                        modifier = Modifier.size(32.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        if (isTesting) {
-                            Box(modifier = Modifier.size(16.dp)) {
-                                CircularProgressIndicator(
-                                    color = AccentCyan,
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp
+                        Text(
+                            "${connection.host}:${connection.port}",
+                            color = OnSurfaceVariant,
+                            fontSize = 12.sp
+                        )
+
+                        Box {
+                            IconButton(
+                                onClick = {
+                                    copyText("Адрес панели", fullUrl)
+                                    showCopyMenu = true
+                                },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.ContentCopy,
+                                    contentDescription = "Копировать адрес",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
-                        } else {
-                            Icon(
-                                Icons.Default.Wifi,
-                                contentDescription = "Проверить",
-                                tint = TextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
+
+                            DropdownMenu(
+                                expanded = showCopyMenu,
+                                onDismissRequest = { showCopyMenu = false },
+                                modifier = Modifier
+                                    .background(DarkCardBg)
+                                    .border(1.dp, DarkCardBorder, RoundedCornerShape(10.dp))
+                                    .padding(0.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .width(230.dp)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        "Реквизиты панели 3X-UI",
+                                        color = PrimaryContainer,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
+
+                                    CredentialCopyRow(
+                                        label = "URL Панели",
+                                        value = fullUrl,
+                                        onCopy = { copyText("URL Панели", fullUrl) }
+                                    )
+
+                                    val loginVal = connection.username.ifBlank { "—" }
+                                    CredentialCopyRow(
+                                        label = "Логин",
+                                        value = loginVal,
+                                        onCopy = { copyText("Логин", loginVal) }
+                                    )
+
+                                    val passVal = connection.password.ifBlank { "—" }
+                                    CredentialCopyRow(
+                                        label = "Пароль",
+                                        value = passVal,
+                                        onCopy = { copyText("Пароль", passVal) }
+                                    )
+
+                                    if (connection.token.isNotBlank()) {
+                                        CredentialCopyRow(
+                                            label = "API Token",
+                                            value = connection.token,
+                                            onCopy = { copyText("API Token", connection.token) }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
+                }
+            }
 
-                    IconButtonWithTooltip(
-                        onClick = onRestartPanel,
-                        tooltipText = stringRes("restart_panel"),
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Sync,
-                            contentDescription = "Перезапуск панели",
-                            tint = AccentCyan,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    IconButtonWithTooltip(
-                        onClick = onRestartXray,
-                        tooltipText = stringRes("restart_xray"),
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Memory,
-                            contentDescription = "Перезапуск Xray",
-                            tint = AccentBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    IconButtonWithTooltip(
-                        onClick = onEdit,
-                        tooltipText = stringRes("edit_connection"),
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Редактировать",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    IconButtonWithTooltip(
-                        onClick = onDelete,
-                        tooltipText = stringRes("delete_connection"),
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Удалить",
-                            tint = RedStatus,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+            Box(
+                modifier = Modifier
+                    .background(
+                        TertiaryContainer.copy(alpha = 0.15f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(
+                                if (connection.isConnected) TertiaryContainer else RedStatus,
+                                CircleShape
+                            )
+                    )
+                    Text(
+                        "${connection.pingMs ?: "--"} ms",
+                        color = if (connection.isConnected) TertiaryFixedDim else RedStatus,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
+
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Version Pill
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SurfaceContainerLow, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Shield,
+                            contentDescription = "",
+                            tint = PrimaryContainer,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            "Xray Core ${info?.xray?.version ?: connection.xrayVersion ?: "v1.8.x"}",
+                            color = OnSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Text("•", color = OutlineVariant)
+                    Text(
+                        "3x-ui v${info?.panelVersion ?: "2.4.x"}",
+                        color = OnSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+
+                // Resource Grid
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(SurfaceContainerLow, RoundedCornerShape(8.dp))
+                            .padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            cpuFormatted,
+                            color = OnSurface,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("CPU Load", color = OnSurfaceVariant, fontSize = 10.sp)
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .background(SurfaceContainerLow, RoundedCornerShape(8.dp))
+                            .padding(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("RAM", color = OnSurfaceVariant, fontSize = 10.sp)
+                            Text(
+                                "${memPercent.toInt()}%",
+                                color = Primary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { memPercent / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .height(4.dp),
+                            color = PrimaryContainer,
+                            trackColor = SurfaceContainerHighest
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .background(SurfaceContainerLow, RoundedCornerShape(8.dp))
+                            .padding(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("NVMe", color = OnSurfaceVariant, fontSize = 10.sp)
+                            Text(
+                                "${diskPercent.toInt()}%",
+                                color = SecondaryFixedDim,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { diskPercent / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .height(4.dp),
+                            color = SecondaryFixedDim,
+                            trackColor = SurfaceContainerHighest
+                        )
+                    }
+                }
+
+                // 5 КНОПОК БЕЗ ТЕКСТА
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    ServerActionButton(
+                        icon = Icons.Default.RestartAlt,
+                        label = "Рестарт Xray",
+                        containerColor = SurfaceContainerHigh,
+                        contentColor = PrimaryContainer,
+                        onClick = onRestartXray,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    ServerActionButton(
+                        icon = Icons.Default.Sync,
+                        label = "Перезапуск панели",
+                        containerColor = SurfaceContainerHigh,
+                        contentColor = SecondaryFixedDim,
+                        onClick = onRestartPanel,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    ServerActionButton(
+                        icon = Icons.Default.Terminal,
+                        label = "Консоль",
+                        containerColor = SecondaryContainer,
+                        contentColor = OnSecondary,
+                        onClick = onConsoleClick,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    ServerActionButton(
+                        icon = Icons.Default.Edit,
+                        label = "Редактировать сервер",
+                        containerColor = SurfaceContainerHigh,
+                        contentColor = AccentCyan,
+                        onClick = onEditServer,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    ServerActionButton(
+                        icon = Icons.Default.Delete,
+                        label = "Удалить сервер",
+                        containerColor = RedStatus.copy(alpha = 0.2f),
+                        contentColor = RedStatus,
+                        onClick = onDeleteServer,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CredentialCopyRow(
+    label: String,
+    value: String,
+    onCopy: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, color = TextSecondary, fontSize = 10.sp)
+            Text(
+                value,
+                color = TextPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = GeistMonoFontFamily,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        IconButton(
+            onClick = onCopy,
+            modifier = Modifier.size(24.dp)
+        ) {
+            Icon(
+                Icons.Default.ContentCopy,
+                contentDescription = "Скопировать $label",
+                tint = AccentCyan,
+                modifier = Modifier.size(13.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ServerActionButton(
+    icon: ImageVector,
+    label: String,
+    containerColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    Box(
+        modifier = modifier
+            .height(38.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(containerColor)
+            .pointerInput(label) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = {
+                        Toast.makeText(context, label, Toast.LENGTH_SHORT).show()
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }

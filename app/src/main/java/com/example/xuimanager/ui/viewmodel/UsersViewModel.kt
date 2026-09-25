@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.xuimanager.data.api.model.ApiClient
+import com.example.xuimanager.data.api.model.ApiClientItem
 import com.example.xuimanager.data.api.model.ClientSettingsItem
 import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.model.PanelConnection
@@ -94,6 +95,96 @@ class UsersViewModel : ViewModel() {
                     _error.value = e.localizedMessage
                     _isLoading.value = false
                 }
+            }
+        }
+    }
+
+    fun addClientApi(
+        context: Context,
+        clientItem: ApiClientItem,
+        inboundIds: List<Int>,
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) {
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            viewModelScope.launch {
+                repository.addClientApi(context, connection, clientItem, inboundIds)
+                    .onSuccess {
+                        loadAllClients(context)
+                        onResult(true, null)
+                    }
+                    .onFailure { e ->
+                        _error.value = e.localizedMessage
+                        _isLoading.value = false
+                        onResult(false, e.localizedMessage)
+                    }
+            }
+        }
+    }
+
+    fun getClientLinks(context: Context, email: String, onResult: (List<String>) -> Unit) {
+        currentConnection?.let { connection ->
+            viewModelScope.launch {
+                repository.getClientLinks(context, connection, email)
+                    .onSuccess { links -> onResult(links) }
+                    .onFailure { onResult(emptyList()) }
+            }
+        }
+    }
+
+    fun deleteClientByEmail(context: Context, email: String, onResult: (Boolean) -> Unit = {}) {
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            viewModelScope.launch {
+                repository.deleteClientByEmail(context, connection, email)
+                    .onSuccess {
+                        loadAllClients(context)
+                        onResult(true)
+                    }
+                    .onFailure { e ->
+                        _error.value = e.localizedMessage
+                        _isLoading.value = false
+                        onResult(false)
+                    }
+            }
+        }
+    }
+
+    fun resetClientTrafficByEmail(context: Context, email: String, onResult: (Boolean) -> Unit = {}) {
+        currentConnection?.let { connection ->
+            viewModelScope.launch {
+                repository.resetClientTrafficByEmail(context, connection, email)
+                    .onSuccess {
+                        loadAllClients(context)
+                        onResult(true)
+                    }
+                    .onFailure { e ->
+                        _error.value = e.localizedMessage
+                        onResult(false)
+                    }
+            }
+        }
+    }
+
+    fun clearClientHwidsByEmail(context: Context, email: String, onResult: (Boolean) -> Unit = {}) {
+        currentConnection?.let { connection ->
+            viewModelScope.launch {
+                repository.clearClientHwidsByEmail(context, connection, email)
+                    .onSuccess { onResult(true) }
+                    .onFailure { e ->
+                        _error.value = e.localizedMessage
+                        onResult(false)
+                    }
+            }
+        }
+    }
+
+    fun toggleClientEnabled(context: Context, email: String, enable: Boolean) {
+        currentConnection?.let { connection ->
+            viewModelScope.launch {
+                repository.toggleClientEnabled(context, connection, email, enable)
+                    .onSuccess { loadAllClients(context) }
+                    .onFailure { e -> _error.value = e.localizedMessage }
             }
         }
     }

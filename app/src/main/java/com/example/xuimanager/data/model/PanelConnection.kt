@@ -13,5 +13,8 @@ data class PanelConnection(
     val skipCertVerify: Boolean = true,
     val isConnected: Boolean = false,
     val xrayVersion: String? = null,
-    val pingMs: Int? = null
+    val pingMs: Int? = null,
+    val sshPort: Int? = 22,
+    val sshUsername: String? = "root",
+    val sshPassword: String? = ""
 )

@@ -42,6 +42,24 @@ class InboundsViewModel : ViewModel() {
         }
     }
 
+    fun deleteInbound(context: Context, inbound: Inbound, onFinished: (Boolean) -> Unit = {}) {
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            viewModelScope.launch {
+                repository.deleteInbound(context, connection, inbound.id)
+                    .onSuccess {
+                        loadInbounds(context)
+                        onFinished(true)
+                    }
+                    .onFailure { e ->
+                        _error.value = e.localizedMessage
+                        _isLoading.value = false
+                        onFinished(false)
+                    }
+            }
+        }
+    }
+
     fun loadInbounds(context: Context) {
         currentConnection?.let { connection ->
             _isLoading.value = true

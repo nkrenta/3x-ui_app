@@ -3,6 +3,7 @@ package com.example.xuimanager.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.xuimanager.data.api.model.PanelInfo
 import com.example.xuimanager.data.model.PanelConnection
 import com.example.xuimanager.data.repository.PanelRepository
 import com.example.xuimanager.data.repository.SettingsRepository
@@ -16,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ConnectionsViewModel : ViewModel() {
     private val _connections = MutableStateFlow<List<PanelConnection>>(emptyList())
@@ -30,31 +33,42 @@ class ConnectionsViewModel : ViewModel() {
     private val repository = PanelRepository()
     private var autoPingJob: Job? = null
     private var isCacheLoaded = false
+    private val persistenceMutex = Mutex()
+
+    private val _serverStats = MutableStateFlow<Map<String, PanelInfo>>(emptyMap())
+    val serverStats = _serverStats.asStateFlow()
 
     fun initPersistence(context: Context) {
         if (isCacheLoaded) return
-        isCacheLoaded = true
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val settingsRepo = SettingsRepository(context)
-                val json = settingsRepo.savedConnectionsJson.first()
-                if (json.isNotBlank()) {
-                    val type = object : TypeToken<List<PanelConnection>>() {}.type
-                    val list: List<PanelConnection>? = Gson().fromJson(json, type)
-                    if (list != null) {
-                        _connections.value = list
+            persistenceMutex.withLock {
+                if (isCacheLoaded) return@withLock
+                try {
+                    val settingsRepo = SettingsRepository(context)
+                    val json = settingsRepo.savedConnectionsJson.first()
+                    if (json.isNotBlank()) {
+                        val type = object : TypeToken<List<PanelConnection>>() {}.type
+                        val list: List<PanelConnection>? = Gson().fromJson(json, type)
+                        if (list != null) {
+                            val currentInMemory = _connections.value
+                            val merged = (list + currentInMemory).distinctBy { it.id }
+                            _connections.value = merged
+                        }
                     }
+                } catch (_: Exception) {
+                } finally {
+                    isCacheLoaded = true
                 }
-            } catch (_: Exception) {
             }
         }
     }
 
     fun persistConnections(context: Context) {
+        val snapshot = _connections.value
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val settingsRepo = SettingsRepository(context)
-                val json = Gson().toJson(_connections.value)
+                val json = Gson().toJson(snapshot)
                 settingsRepo.setSavedConnectionsJson(json)
             } catch (_: Exception) {
             }
@@ -69,33 +83,37 @@ class ConnectionsViewModel : ViewModel() {
                 try {
                     val currentList = _connections.value
                     if (currentList.isNotEmpty()) {
-                        var hasChanges = false
+                        val newStats = _serverStats.value.toMutableMap()
+
                         val updatedList = currentList.map { connection ->
                             val (isAlive, ping) = repository.measurePing(context, connection)
-                            if (connection.isConnected != isAlive || connection.pingMs != ping) {
-                                hasChanges = true
-                                connection.copy(
-                                    isConnected = isAlive,
-                                    pingMs = ping
-                                )
-                            } else {
-                                connection
+                            if (isAlive) {
+                                val infoRes = repository.getPanelInfo(context, connection)
+                                if (infoRes.isSuccess) {
+                                    infoRes.getOrNull()?.let { newStats[connection.id] = it }
+                                }
                             }
+                            connection.copy(
+                                isConnected = isAlive,
+                                pingMs = ping
+                            )
                         }
-                        if (hasChanges) {
-                            _connections.value = updatedList
-                        }
+                        val validIds = _connections.value.map { it.id }.toSet()
+                        val filteredList = updatedList.filter { it.id in validIds }
+
+                        _connections.value = filteredList
+                        _serverStats.value = newStats.filterKeys { it in validIds }
                     }
                 } catch (_: Exception) {
                     // Игнорируем сетевые ошибки в цикле пинга
                 }
-                delay(2000)
+                delay(3000)
             }
         }
     }
 
     fun addConnection(connection: PanelConnection, context: Context? = null) {
-        _connections.value = _connections.value + connection
+        _connections.value = (_connections.value + connection).distinctBy { it.id }
         context?.let { persistConnections(it) }
     }
 
@@ -106,6 +124,7 @@ class ConnectionsViewModel : ViewModel() {
 
     fun deleteConnection(connectionId: String, context: Context? = null) {
         _connections.value = _connections.value.filter { it.id != connectionId }
+        _serverStats.value = _serverStats.value.filterKeys { it != connectionId }
         context?.let { persistConnections(it) }
     }
 
@@ -120,7 +139,6 @@ class ConnectionsViewModel : ViewModel() {
             var xrayVer: String? = connection.xrayVersion
 
             if (success) {
-                // Если название совпадает с IP/хостом или еще не содержит страну с флагом, запрашиваем и СОХРАНЯЕМ имя страны
                 if (connection.name == connection.host || connection.name.isBlank() || !connection.name.contains("(")) {
                     repository.fetchGeoLocation(connection.host)?.let { geoName ->
                         if (geoName.isNotBlank()) {
@@ -155,7 +173,8 @@ class ConnectionsViewModel : ViewModel() {
     fun testAllConnections(context: Context) {
         initPersistence(context)
         viewModelScope.launch {
-            _connections.value.forEach { connection ->
+            val listToTest = _connections.value
+            listToTest.forEach { connection ->
                 testConnection(context, connection)
             }
         }

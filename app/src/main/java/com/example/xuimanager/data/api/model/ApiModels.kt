@@ -208,68 +208,91 @@ data class Inbound(
     }
 
     fun getRealityPublicKey(): String {
-        val streamObj = getStreamSettingsJsonObject() ?: return ""
-        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
-            val realityObj = streamObj.getAsJsonObject("realitySettings")
-            if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
-                val innerSettings = realityObj.getAsJsonObject("settings")
-                if (innerSettings.has("publicKey") && !innerSettings.get("publicKey").isJsonNull) {
-                    return innerSettings.get("publicKey").asString
+        return try {
+            val streamObj = getStreamSettingsJsonObject() ?: return ""
+            if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+                val realityObj = streamObj.getAsJsonObject("realitySettings")
+                if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
+                    val innerSettings = realityObj.getAsJsonObject("settings")
+                    if (innerSettings.has("publicKey") && !innerSettings.get("publicKey").isJsonNull) {
+                        return innerSettings.get("publicKey").asString
+                    }
                 }
             }
+            ""
+        } catch (_: Exception) {
+            ""
         }
-        return ""
     }
 
     fun getRealityPrivateKey(): String {
-        val streamObj = getStreamSettingsJsonObject() ?: return ""
-        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
-            val realityObj = streamObj.getAsJsonObject("realitySettings")
-            if (realityObj.has("privateKey") && !realityObj.get("privateKey").isJsonNull) {
-                return realityObj.get("privateKey").asString
+        return try {
+            val streamObj = getStreamSettingsJsonObject() ?: return ""
+            if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+                val realityObj = streamObj.getAsJsonObject("realitySettings")
+                if (realityObj.has("privateKey") && !realityObj.get("privateKey").isJsonNull) {
+                    return realityObj.get("privateKey").asString
+                }
             }
+            ""
+        } catch (_: Exception) {
+            ""
         }
-        return ""
     }
 
     fun getRealityShortIds(): String {
-        val streamObj = getStreamSettingsJsonObject() ?: return "—"
-        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
-            val realityObj = streamObj.getAsJsonObject("realitySettings")
-            if (realityObj.has("shortIds") && realityObj.get("shortIds").isJsonArray) {
-                val arr = realityObj.getAsJsonArray("shortIds")
-                return arr.joinToString(", ") { it.asString }
+        return try {
+            val streamObj = getStreamSettingsJsonObject() ?: return "—"
+            if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+                val realityObj = streamObj.getAsJsonObject("realitySettings")
+                if (realityObj.has("shortIds") && realityObj.get("shortIds").isJsonArray) {
+                    val arr = realityObj.getAsJsonArray("shortIds")
+                    val list = arr.mapNotNull {
+                        if (it != null && !it.isJsonNull && it.isJsonPrimitive) it.asString else null
+                    }.filter { it.isNotBlank() }
+                    if (list.isNotEmpty()) return list.joinToString(", ")
+                }
             }
+            "—"
+        } catch (_: Exception) {
+            "—"
         }
-        return "—"
     }
 
     fun getRealitySpiderX(): String {
-        val streamObj = getStreamSettingsJsonObject() ?: return "—"
-        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
-            val realityObj = streamObj.getAsJsonObject("realitySettings")
-            if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
-                val innerSettings = realityObj.getAsJsonObject("settings")
-                if (innerSettings.has("spiderX") && !innerSettings.get("spiderX").isJsonNull) {
-                    return innerSettings.get("spiderX").asString
+        return try {
+            val streamObj = getStreamSettingsJsonObject() ?: return "—"
+            if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+                val realityObj = streamObj.getAsJsonObject("realitySettings")
+                if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
+                    val innerSettings = realityObj.getAsJsonObject("settings")
+                    if (innerSettings.has("spiderX") && !innerSettings.get("spiderX").isJsonNull) {
+                        return innerSettings.get("spiderX").asString
+                    }
                 }
             }
+            "—"
+        } catch (_: Exception) {
+            "—"
         }
-        return "—"
     }
 
     fun getRealityFingerprint(): String {
-        val streamObj = getStreamSettingsJsonObject() ?: return "chrome"
-        if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
-            val realityObj = streamObj.getAsJsonObject("realitySettings")
-            if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
-                val innerSettings = realityObj.getAsJsonObject("settings")
-                if (innerSettings.has("fingerprint") && !innerSettings.get("fingerprint").isJsonNull) {
-                    return innerSettings.get("fingerprint").asString
+        return try {
+            val streamObj = getStreamSettingsJsonObject() ?: return "chrome"
+            if (streamObj.has("realitySettings") && streamObj.get("realitySettings").isJsonObject) {
+                val realityObj = streamObj.getAsJsonObject("realitySettings")
+                if (realityObj.has("settings") && realityObj.get("settings").isJsonObject) {
+                    val innerSettings = realityObj.getAsJsonObject("settings")
+                    if (innerSettings.has("fingerprint") && !innerSettings.get("fingerprint").isJsonNull) {
+                        return innerSettings.get("fingerprint").asString
+                    }
                 }
             }
+            "chrome"
+        } catch (_: Exception) {
+            "chrome"
         }
-        return "chrome"
     }
 
     fun isSniffingEnabled(): Boolean {
@@ -411,7 +434,22 @@ data class ApiClient(
     }
 }
 
-// Add client request
+// Add client request (REST API v2.x)
+data class ApiClientItem(
+    @SerializedName("email") val email: String,
+    @SerializedName("totalGB") val totalGB: Long = 0,
+    @SerializedName("expiryTime") val expiryTime: Long = 0,
+    @SerializedName("tgId") val tgId: Int = 0,
+    @SerializedName("limitIp") val limitIp: Int = 0,
+    @SerializedName("limitHwid") val limitHwid: Int = 0,
+    @SerializedName("enable") val enable: Boolean = true
+)
+
+data class AddClientApiRequest(
+    @SerializedName("client") val client: ApiClientItem,
+    @SerializedName("inboundIds") val inboundIds: List<Int>
+)
+
 data class AddClientRequest(
     @SerializedName("id") val inboundId: Int,
     @SerializedName("settings") val settings: String

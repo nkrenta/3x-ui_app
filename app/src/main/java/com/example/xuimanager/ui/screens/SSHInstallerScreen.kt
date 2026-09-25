@@ -1,47 +1,42 @@
 package com.example.xuimanager.ui.screens
 
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,16 +44,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.xuimanager.data.model.PanelConnection
-import com.example.xuimanager.ui.theme.AccentBlue
-import com.example.xuimanager.ui.theme.AccentCyan
-import com.example.xuimanager.ui.theme.DarkBackground
-import com.example.xuimanager.ui.theme.DarkCardBg
-import com.example.xuimanager.ui.theme.DarkCardBorder
-import com.example.xuimanager.ui.theme.GreenStatus
-import com.example.xuimanager.ui.theme.RedStatus
-import com.example.xuimanager.ui.theme.TextPrimary
-import com.example.xuimanager.ui.theme.TextSecondary
+import com.example.xuimanager.ui.theme.*
+import com.example.xuimanager.ui.viewmodel.DeploymentStepItem
 import com.example.xuimanager.ui.viewmodel.SSHInstallerViewModel
+import com.example.xuimanager.ui.viewmodel.StepStatus
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,261 +59,438 @@ fun SSHInstallerScreen(
     var port by remember { mutableStateOf("22") }
     var username by remember { mutableStateOf("root") }
     var password by remember { mutableStateOf("") }
+
     val logs by viewModel.logs.collectAsState()
     val isInstalling by viewModel.isInstalling.collectAsState()
-    val result by viewModel.installResult.collectAsState()
+    val steps by viewModel.steps.collectAsState()
+    val progress by viewModel.progress.collectAsState()
     val installedConnection by viewModel.installedConnection.collectAsState()
-    val scope = rememberCoroutineScope()
 
-    Column(
+    val context = LocalContext.current
+    val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val topContentPadding = statusBarTopPadding + 68.dp
+    val bottomContentPadding = navBarBottomPadding + 96.dp
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkBackground)
-            .padding(16.dp)
     ) {
-        Text("SSH Инсталлер 3x-ui", color = TextPrimary, fontSize = 20.sp)
-        Text(
-            "Автоматическая установка панели MHSanaei/3x-ui на VPS",
-            color = TextSecondary,
-            fontSize = 12.sp
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Connection Form Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = DarkCardBg)
+        // 1. КОНТЕНТ ЭКРАНА (Скроллится под парящей шапкой)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 14.dp,
+                end = 14.dp,
+                top = topContentPadding,
+                bottom = bottomContentPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Подключение к серверу", color = TextPrimary, fontSize = 16.sp)
-
-                OutlinedTextField(
-                    value = host,
-                    onValueChange = { host = it },
-                    label = { Text("Хост (IP адрес)", color = TextSecondary) },
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        containerColor = DarkBackground,
-                        focusedLabelColor = AccentCyan,
-                        unfocusedLabelColor = TextSecondary
-                    ),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedTextField(
-                        value = port,
-                        onValueChange = { port = it },
-                        label = { Text("Порт SSH", color = TextSecondary) },
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            containerColor = DarkBackground,
-                            focusedLabelColor = AccentCyan,
-                            unfocusedLabelColor = TextSecondary
-                        ),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = { username = it },
-                        label = { Text("Пользователь", color = TextSecondary) },
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            containerColor = DarkBackground,
-                            focusedLabelColor = AccentCyan,
-                            unfocusedLabelColor = TextSecondary
-                        ),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Пароль (или ключ SSH)", color = TextSecondary) },
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        containerColor = DarkBackground,
-                        focusedLabelColor = AccentCyan,
-                        unfocusedLabelColor = TextSecondary
-                    ),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            if (!isInstalling && host.isNotBlank() && password.isNotBlank()) {
-                                viewModel.install3xUI(
-                                    host,
-                                    port.toIntOrNull() ?: 22,
-                                    username,
-                                    password
-                                )
-                            }
-                        },
-                        enabled = !isInstalling && host.isNotBlank() && password.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (!isInstalling && host.isNotBlank() && password.isNotBlank()) AccentBlue else DarkCardBorder
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isInstalling) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                androidx.compose.foundation.layout.Box(modifier = Modifier.size(16.dp)) {
-                                    CircularProgressIndicator(
-                                        color = Color.White,
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Установка...", color = Color.White)
-                            }
-                        } else {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = "",
-                                    tint = Color.White
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Установить 3x-ui", color = Color.White)
-                            }
-                        }
-                    }
-
-                    Button(
-                        onClick = { viewModel.clearLogs() },
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkCardBorder),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "",
-                                tint = TextSecondary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Очистить лог", color = TextSecondary)
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Installation info
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = DarkCardBg)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text("Что будет установлено:", color = TextPrimary, fontSize = 14.sp)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    InstallStep("✓", "Docker & Docker Compose")
-                    InstallStep("✓", "3x-ui Panel (MHSanaei fork)")
-                    InstallStep("✓", "Xray Core (последняя версия)")
-                    InstallStep("✓", "Автоматический SSL (Let's Encrypt)")
-                    InstallStep("✓", "Настройка Firewall (UFW/iptables)")
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Logs
-        Text("Лог установки:", color = TextPrimary, fontSize = 16.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.5f),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1117))
-        ) {
-            if (logs.isEmpty() && !isInstalling) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Terminal,
-                            contentDescription = "",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Лог пуст. Запустите установку.", color = TextSecondary)
-                    }
-                }
-            } else {
-                LazyColumn(
+            // ФОРМА ПОДКЛЮЧЕНИЯ К VPS
+            item {
+                Card(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    reverseLayout = true
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = RoundedCornerShape(16.dp),
+                            ambientColor = PrimaryContainer,
+                            spotColor = PrimaryContainer
+                        )
+                        .border(
+                            border = BorderStroke(1.5.dp, PrimaryContainer.copy(alpha = 0.65f)),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceContainerHigh),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    items(logs.reversed()) { log ->
-                        LogLine(log)
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(PrimaryContainer.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Terminal,
+                                    contentDescription = "",
+                                    tint = PrimaryContainer,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    "SSH Деплой 3X-UI",
+                                    color = Primary,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "Автоматическая установка MHSanaei на чистый VPS",
+                                    color = OnSurfaceVariant,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = host,
+                            onValueChange = { host = it },
+                            label = { Text("Хост / IP адрес сервера", color = OnSurfaceVariant, fontSize = 11.sp) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = SurfaceContainerLow,
+                                unfocusedContainerColor = SurfaceContainerLow,
+                                focusedBorderColor = PrimaryContainer,
+                                unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = port,
+                                onValueChange = { port = it },
+                                label = { Text("Порт SSH", color = OnSurfaceVariant, fontSize = 11.sp) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = SurfaceContainerLow,
+                                    unfocusedContainerColor = SurfaceContainerLow,
+                                    focusedBorderColor = PrimaryContainer,
+                                    unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            OutlinedTextField(
+                                value = username,
+                                onValueChange = { username = it },
+                                label = { Text("Пользователь", color = OnSurfaceVariant, fontSize = 11.sp) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = SurfaceContainerLow,
+                                    unfocusedContainerColor = SurfaceContainerLow,
+                                    focusedBorderColor = PrimaryContainer,
+                                    unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Пароль SSH (root)", color = OnSurfaceVariant, fontSize = 11.sp) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = SurfaceContainerLow,
+                                unfocusedContainerColor = SurfaceContainerLow,
+                                focusedBorderColor = PrimaryContainer,
+                                unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    if (!isInstalling && host.isNotBlank() && password.isNotBlank()) {
+                                        viewModel.install3xUI(
+                                            context,
+                                            host.trim(),
+                                            port.toIntOrNull() ?: 22,
+                                            username.trim(),
+                                            password.trim()
+                                        )
+                                    } else {
+                                        Toast.makeText(context, "Заполните IP и пароль", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                enabled = !isInstalling && host.isNotBlank() && password.isNotBlank(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PrimaryContainer,
+                                    contentColor = OnPrimary,
+                                    disabledContainerColor = SurfaceContainerHighest,
+                                    disabledContentColor = OnSurfaceVariant
+                                ),
+                                modifier = Modifier
+                                    .weight(1.6f)
+                                    .height(38.dp)
+                            ) {
+                                if (isInstalling) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            color = OnPrimary,
+                                            modifier = Modifier.size(14.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Установка...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.PlayArrow,
+                                            contentDescription = "",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Запустить деплой", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            Button(
+                                onClick = { viewModel.clearLogs() },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SurfaceContainerHighest,
+                                    contentColor = TextPrimary
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Очистить", fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // РЕЗУЛЬТАТ ДЕПЛОЯ И КНОПКА ДОБАВЛЕНИЯ
+            installedConnection?.let { conn ->
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, TertiaryFixedDim.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
+                        colors = CardDefaults.cardColors(containerColor = TertiaryContainer.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = "", tint = TertiaryFixedDim, modifier = Modifier.size(20.dp))
+                                Text("3x-ui успешно установлен!", color = TertiaryFixedDim, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
+                            val creds by viewModel.detectedCredentials.collectAsState()
+                            val displayUser = creds?.first?.ifBlank { "admin" } ?: "admin"
+                            val displayPass = creds?.second?.ifBlank { "admin" } ?: "admin"
+
+                            Text(
+                                "Сервер: ${conn.host}:${conn.port} | SSH Порт: ${conn.sshPort ?: 22}\nЛогин: $displayUser | Пароль: $displayPass",
+                                color = TextPrimary,
+                                fontSize = 12.sp,
+                                fontFamily = GeistMonoFontFamily
+                            )
+                            viewModel.logFilePath.collectAsState().value?.let { path ->
+                                Text(
+                                    "Лог файл сохранен: $path",
+                                    color = TertiaryFixedDim,
+                                    fontSize = 11.sp,
+                                    fontFamily = GeistMonoFontFamily
+                                )
+                            }
+                            Button(
+                                onClick = { onAddConnection(conn) },
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryContainer, contentColor = OnPrimary),
+                                modifier = Modifier.fillMaxWidth().height(40.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "", modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Сохранить и подключиться", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // БЛОК "ПРОГРЕСС РАЗВЕРТЫВАНИЯ" (100% В ТОЧНОСТИ КАК НА СКРИНШОТЕ 2)
+            item {
+                DeploymentProgressCard(
+                    progress = progress,
+                    steps = steps,
+                    isInstalling = isInstalling
+                )
+            }
+
+            // ЛОГ УСТАНОВКИ В РЕАЛЬНОМ ВРЕМЕНИ (STITCH TERMINAL BOX)
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Консольный лог деплоя:", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .border(1.dp, OutlineVariant.copy(alpha = 0.3f), RoundedCornerShape(14.dp)),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceContainerLowest),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(SurfaceContainerLow)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(modifier = Modifier.size(10.dp).background(RedStatus, CircleShape))
+                                    Box(modifier = Modifier.size(10.dp).background(YellowStatus, CircleShape))
+                                    Box(modifier = Modifier.size(10.dp).background(GreenStatus, CircleShape))
+                                }
+                                Text(
+                                    "bash - root@${host.ifBlank { "vps" }}",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontFamily = GeistMonoFontFamily
+                                )
+                            }
+
+                            if (logs.isEmpty() && !isInstalling) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.Terminal,
+                                            contentDescription = "",
+                                            tint = Outline,
+                                            modifier = Modifier.size(44.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("Лог пуст. Запустите деплой выше.", color = TextSecondary, fontSize = 12.sp)
+                                    }
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    reverseLayout = true
+                                ) {
+                                    items(logs.reversed()) { logLine ->
+                                        val lineLower = logLine.lowercase()
+                                        val lineColor = when {
+                                            lineLower.contains("error") || lineLower.contains("fail") || lineLower.contains("ошибка") -> RedStatus
+                                            lineLower.contains("success") || lineLower.contains("успешно") || lineLower.contains("done") -> TertiaryFixedDim
+                                            lineLower.contains("install") || lineLower.contains("running") -> PrimaryContainer
+                                            else -> TextPrimary
+                                        }
+
+                                        Text(
+                                            logLine,
+                                            color = lineColor,
+                                            fontSize = 11.sp,
+                                            fontFamily = GeistMonoFontFamily,
+                                            maxLines = 4,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Result message
-        result?.let { res ->
-            Card(
+        // 2. НЕПОДВИЖНАЯ ПЛАВАЮЩАЯ ШАПКА ВВЕРХУ
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (res.contains("успешно") || res.contains("success")) GreenStatus.copy(
-                        alpha = 0.2f
-                    ) else RedStatus.copy(alpha = 0.2f)
-                )
+                    .height(52.dp)
+                    .shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        clip = false,
+                        ambientColor = Color.Black,
+                        spotColor = Color.Black
+                    ),
+                color = DarkCardBg.copy(alpha = 0.92f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color(0x33FFFFFF))
             ) {
-                Text(
-                    res,
-                    color = if (res.contains("успешно") || res.contains("success")) GreenStatus else RedStatus,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        }
-
-        installedConnection?.let { conn ->
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = { onAddConnection(conn) },
-                colors = ButtonDefaults.buttonColors(containerColor = GreenStatus),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Add, contentDescription = "", tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    val pathText = if (conn.path.isNotBlank()) "/${conn.path.trim('/')}" else ""
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        "Сохранить панель в 'Подключения' (${conn.host}:${conn.port}$pathText)",
-                        color = Color.White
+                        stringRes("ssh"),
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(PrimaryContainer.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("MHSanaei 3x-ui", color = PrimaryContainer, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
@@ -332,41 +498,239 @@ fun SSHInstallerScreen(
 }
 
 @Composable
-fun InstallStep(icon: String, text: String) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(icon, color = GreenStatus, fontSize = 14.sp)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text, color = TextSecondary, fontSize = 13.sp)
+fun DeploymentProgressCard(
+    progress: Float,
+    steps: List<DeploymentStepItem>,
+    isInstalling: Boolean
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        label = "progress"
+    )
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse_glow")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.30f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    val activeBorderColor = if (isInstalling) PrimaryContainer.copy(alpha = pulseAlpha) else OutlineVariant.copy(alpha = 0.3f)
+    val activeShadowColor = if (isInstalling) PrimaryContainer else Color.Black
+    val activeElevation = if (isInstalling) 14.dp else 0.dp
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = activeElevation,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = activeShadowColor,
+                spotColor = activeShadowColor
+            )
+            .border(1.5.dp, activeBorderColor, RoundedCornerShape(18.dp)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainerHigh),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // ШАПКА КАРТОЧКИ С ФИОЛЕТОВОЙ ИКОНКОЙ
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .background(Color(0xFF282561), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Sync,
+                            contentDescription = "",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            "Прогресс развертывания",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Serif
+                        )
+                        Text(
+                            "Выполнение сценария оркестрации",
+                            color = Color(0xFF9CA3AF),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Text(
+                    "${(animatedProgress * 100).toInt()}%",
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.SansSerif
+                )
+            }
+
+            // ШКАЛА ПРОГРЕССА
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp)),
+                color = PrimaryContainer,
+                trackColor = SurfaceContainerLowest
+            )
+
+            HorizontalDivider(color = OutlineVariant.copy(alpha = 0.25f), thickness = 0.5.dp)
+
+            // СПИСОК ШАГОВ
+            Column(
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                steps.forEach { step ->
+                    DeploymentStepRow(step = step)
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun LogLine(log: String) {
-    val isError =
-        log.contains("ОШИБКА") || log.contains("ERROR") || log.contains("Error") || log.contains("failed")
-    val isSuccess =
-        log.contains("успешно") || log.contains("success") || log.contains("completed") || log.contains(
-            "OK"
-        )
-    val isInfo =
-        log.contains("Запуск") || log.contains("подключение") || log.contains("Starting") || log.contains(
-            "Connecting"
-        )
+private fun DeploymentStepRow(step: DeploymentStepItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Иконка состояния шага
+        Box(
+            modifier = Modifier.size(28.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when (step.status) {
+                StepStatus.COMPLETED -> {
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .background(Color(0xFF0F382B), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "",
+                            tint = TertiaryFixedDim,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                StepStatus.IN_PROGRESS -> {
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .shadow(8.dp, CircleShape, spotColor = PrimaryContainer)
+                            .background(Color(0xFF133E43), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = PrimaryContainer,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                StepStatus.FAILED -> {
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .background(RedStatus.copy(alpha = 0.2f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "",
+                            tint = RedStatus,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                StepStatus.PENDING -> {
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .border(2.dp, Color(0xFF374151), CircleShape)
+                    )
+                }
+            }
+        }
 
-    val color = when {
-        isError -> RedStatus
-        isSuccess -> GreenStatus
-        isInfo -> AccentCyan
-        else -> TextSecondary
+        // Заголовок шага + бейдж Active + Телеметрия
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    step.title,
+                    color = when (step.status) {
+                        StepStatus.PENDING -> Color(0xFF6B7280)
+                        StepStatus.IN_PROGRESS -> Color.White
+                        StepStatus.FAILED -> RedStatus
+                        StepStatus.COMPLETED -> Color.White
+                    },
+                    fontSize = 14.sp,
+                    fontWeight = if (step.status == StepStatus.PENDING) FontWeight.Normal else FontWeight.Bold,
+                    fontFamily = FontFamily.SansSerif
+                )
+
+                if (step.status == StepStatus.IN_PROGRESS) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFF133E43), RoundedCornerShape(6.dp))
+                            .border(0.5.dp, PrimaryContainer.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            "Active",
+                            color = PrimaryFixed,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = GeistMonoFontFamily
+                        )
+                    }
+                }
+            }
+
+            Text(
+                step.description,
+                color = if (step.status == StepStatus.PENDING) Color(0xFF4B5563) else Color(0xFF9CA3AF),
+                fontSize = 12.sp,
+                fontFamily = GeistMonoFontFamily
+            )
+        }
     }
-
-    Text(
-        text = "> $log",
-        color = color,
-        fontFamily = FontFamily.Monospace,
-        fontSize = 11.sp,
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
-        overflow = TextOverflow.Ellipsis
-    )
 }

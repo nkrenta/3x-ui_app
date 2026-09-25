@@ -2,13 +2,49 @@ package com.example.xuimanager.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val DarkBackground = Color(0xFF0D1117)     // Задний фон страницы
-val DarkCardBg = Color(0xFF161B22)         // Фон карточек и панелей
-val DarkCardBorder = Color(0xFF30363D)     // Тонкая рамка карточек
-val AccentBlue = Color(0xFF1F6FEB)         // Синий акцент (кнопки, линии графиков)
-val AccentCyan = Color(0xFF58A6FF)         // Дополнительный голубой
-val TextPrimary = Color(0xFFF0F6FC)        // Белый текст
-val TextSecondary = Color(0xFF8B949E)      // Серый текст
-val GreenStatus = Color(0xFF3FB950)        // Зеленый (Xray Запущен)
-val YellowStatus = Color(0xFFF59E0B)       // Желтый (Warning / TLS)
-val RedStatus = Color(0xFFF85149)          // Красный (Ошибка / Стоп)
+val SurfaceContainerLowest = Color(0xFF0C0E11)
+val SurfaceContainerLow = Color(0xFF1A1C1F)
+val SurfaceContainer = Color(0xFF1E2023)
+val SurfaceContainerHigh = Color(0xFF282A2D)
+val SurfaceContainerHighest = Color(0xFF333538)
+val SurfaceBright = Color(0xFF37393D)
+val SurfaceTint = Color(0xFF00DCE6)
+
+val Background = Color(0xFF111317)
+val OnSurface = Color(0xFFE2E2E6)
+val OnSurfaceVariant = Color(0xFFB9CACB)
+val Outline = Color(0xFF849495)
+val OutlineVariant = Color(0xFF3A494B)
+
+val Primary = Color(0xFFE0FDFF)
+val OnPrimary = Color(0xFF00373A)
+val PrimaryContainer = Color(0xFF00F2FE)
+val OnPrimaryContainer = Color(0xFF006A70)
+val PrimaryFixed = Color(0xFF6FF6FF)
+val PrimaryFixedDim = Color(0xFF00DCE6)
+
+val Secondary = Color(0xFFC0C1FF)
+val OnSecondary = Color(0xFF1000A9)
+val SecondaryContainer = Color(0xFF3131C0)
+val SecondaryFixed = Color(0xFFE1E0FF)
+val SecondaryFixedDim = Color(0xFFC0C1FF)
+
+val Tertiary = Color(0xFFE1FFEC)
+val OnTertiary = Color(0xFF003824)
+val TertiaryContainer = Color(0xFF67F4B7)
+val TertiaryFixedDim = Color(0xFF4EDEA3)
+
+val Error = Color(0xFFFFB4AB)
+val ErrorContainer = Color(0xFF93000A)
+
+// Legacy aliases to prevent build breaks
+val DarkBackground = Background
+val DarkCardBg = SurfaceContainer
+val DarkCardBorder = OutlineVariant
+val AccentBlue = SecondaryContainer
+val AccentCyan = PrimaryContainer
+val TextPrimary = OnSurface
+val TextSecondary = OnSurfaceVariant
+val GreenStatus = TertiaryFixedDim
+val YellowStatus = Color(0xFFF59E0B)
+val RedStatus = Error

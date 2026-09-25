@@ -1,5 +1,6 @@
 package com.example.xuimanager.data.api
 
+import com.example.xuimanager.data.api.model.AddClientApiRequest
 import com.example.xuimanager.data.api.model.AddClientRequest
 import com.example.xuimanager.data.api.model.ClientListResponse
 import com.example.xuimanager.data.api.model.GenericResponse
@@ -12,6 +13,7 @@ import com.google.gson.JsonObject
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
@@ -110,6 +112,17 @@ interface XuiApiService {
         @Body body: JsonObject
     ): Response<GenericResponse>
 
+    // Delete Inbound (POST /panel/api/inbounds/del/{id})
+    @POST("panel/api/inbounds/del/{id}")
+    suspend fun deleteInboundApi(
+        @Path("id") id: Int
+    ): Response<GenericResponse>
+
+    @POST("panel/inbound/del/{id}")
+    suspend fun deleteInboundLegacy(
+        @Path("id") id: Int
+    ): Response<GenericResponse>
+
     // Legacy Inbounds Add
     @POST("panel/inbound/list")
     suspend fun getInbounds(): Response<InboundListResponse>
@@ -171,6 +184,11 @@ interface XuiApiService {
         @Path("id") id: Int
     ): Response<ClientListResponse>
 
+    @POST("panel/api/clients/add")
+    suspend fun addClientApi(
+        @Body request: AddClientApiRequest
+    ): Response<GenericResponse>
+
     @POST("panel/inbound/addClient")
     suspend fun addClient(
         @Body request: AddClientRequest
@@ -186,6 +204,37 @@ interface XuiApiService {
     suspend fun updateClient(
         @Path("clientId") clientId: String,
         @Body settings: String
+    ): Response<GenericResponse>
+
+    // REST API v2.x Client Operations
+    @GET("panel/api/clients/links/{email}")
+    suspend fun getClientLinksApi(
+        @Path("email") email: String
+    ): Response<GenericResponse>
+
+    @POST("panel/api/clients/del/{email}")
+    suspend fun deleteClientApiByEmail(
+        @Path("email") email: String
+    ): Response<GenericResponse>
+
+    @POST("panel/api/clients/resetTraffic/{email}")
+    suspend fun resetClientTrafficApiByEmail(
+        @Path("email") email: String
+    ): Response<GenericResponse>
+
+    @DELETE("panel/api/clients/hwids/{email}")
+    suspend fun clearClientHwidsApiByEmail(
+        @Path("email") email: String
+    ): Response<GenericResponse>
+
+    @POST("panel/api/clients/bulkEnable")
+    suspend fun bulkEnableClients(
+        @Body emails: List<String>
+    ): Response<GenericResponse>
+
+    @POST("panel/api/clients/bulkDisable")
+    suspend fun bulkDisableClients(
+        @Body emails: List<String>
     ): Response<GenericResponse>
 
     // Traffic reset

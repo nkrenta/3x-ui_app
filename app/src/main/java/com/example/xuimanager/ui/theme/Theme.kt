@@ -11,20 +11,17 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val LocalFontSizeScale = compositionLocalOf { 1.0f }
-
-// Гарнитура шрифта из прототипа Google Stitch / Google Sans (FontFamily.SansSerif)
-val StitchFontFamily = FontFamily.SansSerif
-val GeistFontFamily = FontFamily.SansSerif
+// Гарнитура шрифтов
 val GeistMonoFontFamily = FontFamily.Monospace
 
 private val DarkColorScheme = darkColorScheme(
@@ -39,66 +36,88 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun ThreeXUITheme(
     fontSizeScale: Float = 1.0f,
+    appFontFamily: String = "System",
     content: @Composable () -> Unit
 ) {
-    val scaledTypography = Typography(
+    val currentFontFamily = try {
+        when (appFontFamily) {
+            "Serif" -> FontFamily.Serif
+            "Monospace" -> FontFamily.Monospace
+            "Default" -> FontFamily.Default
+            else -> FontFamily.SansSerif
+        }
+    } catch (_: Exception) {
+        FontFamily.SansSerif
+    }
+
+    val safeScale = fontSizeScale.coerceIn(0.6f, 1.4f)
+    
+    val baseTypography = Typography(
         bodyLarge = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (16 * fontSizeScale).sp,
-            lineHeight = (24 * fontSizeScale).sp
+            fontFamily = currentFontFamily,
+            fontSize = 16.sp,
+            lineHeight = 24.sp
         ),
         bodyMedium = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (14 * fontSizeScale).sp,
-            lineHeight = (20 * fontSizeScale).sp
+            fontFamily = currentFontFamily,
+            fontSize = 14.sp,
+            lineHeight = 20.sp
         ),
         bodySmall = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (12 * fontSizeScale).sp,
-            lineHeight = (16 * fontSizeScale).sp
+            fontFamily = currentFontFamily,
+            fontSize = 12.sp,
+            lineHeight = 16.sp
         ),
         titleLarge = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (22 * fontSizeScale).sp,
-            lineHeight = (28 * fontSizeScale).sp,
+            fontFamily = currentFontFamily,
+            fontSize = 22.sp,
+            lineHeight = 28.sp,
             fontWeight = FontWeight.Bold
         ),
         titleMedium = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (18 * fontSizeScale).sp,
-            lineHeight = (24 * fontSizeScale).sp,
+            fontFamily = currentFontFamily,
+            fontSize = 18.sp,
+            lineHeight = 24.sp,
             fontWeight = FontWeight.SemiBold
         ),
         titleSmall = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (14 * fontSizeScale).sp,
-            lineHeight = (20 * fontSizeScale).sp,
+            fontFamily = currentFontFamily,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
             fontWeight = FontWeight.Medium
         ),
         labelLarge = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (14 * fontSizeScale).sp,
-            lineHeight = (20 * fontSizeScale).sp,
+            fontFamily = currentFontFamily,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
             fontWeight = FontWeight.Medium
         ),
         labelMedium = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (12 * fontSizeScale).sp,
-            lineHeight = (16 * fontSizeScale).sp,
+            fontFamily = currentFontFamily,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
             fontWeight = FontWeight.Medium
         ),
         labelSmall = TextStyle(
-            fontFamily = StitchFontFamily,
-            fontSize = (10 * fontSizeScale).sp,
-            lineHeight = (14 * fontSizeScale).sp,
+            fontFamily = currentFontFamily,
+            fontSize = 10.sp,
+            lineHeight = 14.sp,
             fontWeight = FontWeight.Medium
         )
     )
 
-    CompositionLocalProvider(LocalFontSizeScale provides fontSizeScale) {
+    val currentDensity = LocalDensity.current
+    val customDensity = Density(
+        density = currentDensity.density,
+        fontScale = currentDensity.fontScale * safeScale
+    )
+
+    CompositionLocalProvider(
+        LocalDensity provides customDensity
+    ) {
         MaterialTheme(
             colorScheme = DarkColorScheme,
-            typography = scaledTypography,
+            typography = baseTypography,
             content = content
         )
     }

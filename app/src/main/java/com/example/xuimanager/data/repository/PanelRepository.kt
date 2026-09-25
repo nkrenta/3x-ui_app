@@ -3,6 +3,7 @@ package com.example.xuimanager.data.repository
 import android.content.Context
 import com.example.xuimanager.data.api.XuiApiClient
 import com.example.xuimanager.data.api.model.ApiClient
+import com.example.xuimanager.data.api.model.ApiClientItem
 import com.example.xuimanager.data.api.model.ClientSettingsItem
 import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.api.model.PanelInfo
@@ -77,12 +78,14 @@ class PanelRepository {
     suspend fun getPanelInfo(context: Context, connection: PanelConnection): Result<PanelInfo> =
         withContext(Dispatchers.IO) {
             val client = XuiApiClient.getInstance(context, connection)
-            val loginResult = client.login()
-            if (loginResult.isFailure) {
-                Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
-            } else {
-                client.getPanelInfo()
+            var infoRes = client.getPanelInfo()
+            if (infoRes.isFailure) {
+                val loginResult = client.login()
+                if (loginResult.isSuccess) {
+                    infoRes = client.getPanelInfo()
+                }
             }
+            infoRes
         }
 
     suspend fun getSystemStats(context: Context, connection: PanelConnection): Result<SystemStats> =
@@ -103,12 +106,30 @@ class PanelRepository {
         enable: Boolean
     ): Result<Boolean> = withContext(Dispatchers.IO) {
         val client = XuiApiClient.getInstance(context, connection)
-        val loginResult = client.login()
-        if (loginResult.isFailure) {
-            Result.failure(loginResult.exceptionOrNull() ?: Exception("Login failed"))
-        } else {
-            client.setInboundEnable(inboundId, enable)
+        var res = client.setInboundEnable(inboundId, enable)
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) {
+                res = client.setInboundEnable(inboundId, enable)
+            }
         }
+        res
+    }
+
+    suspend fun deleteInbound(
+        context: Context,
+        connection: PanelConnection,
+        inboundId: Int
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.deleteInbound(inboundId)
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) {
+                res = client.deleteInbound(inboundId)
+            }
+        }
+        res
     }
 
     suspend fun getInboundsList(
@@ -175,6 +196,104 @@ class PanelRepository {
         } else {
             client.getClients(inboundId)
         }
+    }
+
+    suspend fun addClientApi(
+        context: Context,
+        connection: PanelConnection,
+        clientItem: ApiClientItem,
+        inboundIds: List<Int>
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val apiClient = XuiApiClient.getInstance(context, connection)
+        var res = apiClient.addClientApi(clientItem, inboundIds)
+        if (res.isFailure) {
+            val loginResult = apiClient.login()
+            if (loginResult.isSuccess) {
+                res = apiClient.addClientApi(clientItem, inboundIds)
+            }
+        }
+        res
+    }
+
+    suspend fun getClientLinks(
+        context: Context,
+        connection: PanelConnection,
+        email: String
+    ): Result<List<String>> = withContext(Dispatchers.IO) {
+        val apiClient = XuiApiClient.getInstance(context, connection)
+        var res = apiClient.getClientLinks(email)
+        if (res.isFailure) {
+            val loginResult = apiClient.login()
+            if (loginResult.isSuccess) {
+                res = apiClient.getClientLinks(email)
+            }
+        }
+        res
+    }
+
+    suspend fun deleteClientByEmail(
+        context: Context,
+        connection: PanelConnection,
+        email: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val apiClient = XuiApiClient.getInstance(context, connection)
+        var res = apiClient.deleteClientByEmail(email)
+        if (res.isFailure) {
+            val loginResult = apiClient.login()
+            if (loginResult.isSuccess) {
+                res = apiClient.deleteClientByEmail(email)
+            }
+        }
+        res
+    }
+
+    suspend fun resetClientTrafficByEmail(
+        context: Context,
+        connection: PanelConnection,
+        email: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val apiClient = XuiApiClient.getInstance(context, connection)
+        var res = apiClient.resetClientTrafficByEmail(email)
+        if (res.isFailure) {
+            val loginResult = apiClient.login()
+            if (loginResult.isSuccess) {
+                res = apiClient.resetClientTrafficByEmail(email)
+            }
+        }
+        res
+    }
+
+    suspend fun clearClientHwidsByEmail(
+        context: Context,
+        connection: PanelConnection,
+        email: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val apiClient = XuiApiClient.getInstance(context, connection)
+        var res = apiClient.clearClientHwidsByEmail(email)
+        if (res.isFailure) {
+            val loginResult = apiClient.login()
+            if (loginResult.isSuccess) {
+                res = apiClient.clearClientHwidsByEmail(email)
+            }
+        }
+        res
+    }
+
+    suspend fun toggleClientEnabled(
+        context: Context,
+        connection: PanelConnection,
+        email: String,
+        enable: Boolean
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val apiClient = XuiApiClient.getInstance(context, connection)
+        var res = apiClient.toggleClientEnabled(email, enable)
+        if (res.isFailure) {
+            val loginResult = apiClient.login()
+            if (loginResult.isSuccess) {
+                res = apiClient.toggleClientEnabled(email, enable)
+            }
+        }
+        res
     }
 
     suspend fun addClient(

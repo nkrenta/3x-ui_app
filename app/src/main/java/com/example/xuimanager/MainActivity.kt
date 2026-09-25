@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.xuimanager.data.model.PanelConnection
 import com.example.xuimanager.ui.screens.AppSettingsScreen
 import com.example.xuimanager.ui.screens.DashboardScreen
 import com.example.xuimanager.ui.screens.InboundsScreen
@@ -86,6 +88,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
             val fontSizeScale by settingsViewModel.fontSizeScale.collectAsState()
+            val appFontFamily by settingsViewModel.appFontFamily.collectAsState()
             val selectedLanguage by settingsViewModel.selectedLanguage.collectAsState()
             val isPinEnabled by settingsViewModel.isPinEnabled.collectAsState()
             val pinCode by settingsViewModel.pinCode.collectAsState()
@@ -95,7 +98,7 @@ class MainActivity : FragmentActivity() {
             val appLang = if (selectedLanguage == "English") AppLanguage.EN else AppLanguage.RU
 
             CompositionLocalProvider(LocalAppLanguage provides appLang) {
-                ThreeXUITheme(fontSizeScale = fontSizeScale) {
+                ThreeXUITheme(fontSizeScale = fontSizeScale, appFontFamily = appFontFamily) {
                     val isLockedNeeded =
                         (isPinEnabled || isBiometricEnabled) && (pinCode.isNotBlank() || isBiometricEnabled)
                     if (isLockedNeeded && !isUnlocked) {
@@ -143,11 +146,28 @@ fun MainAppStructure(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "dashboard"
 
+    val connections by connectionsViewModel.connections.collectAsState()
+    var selectedConnection by remember { mutableStateOf<PanelConnection?>(null) }
+
+    LaunchedEffect(connections) {
+        if (selectedConnection == null && connections.isNotEmpty()) {
+            selectedConnection = connections.first()
+        }
+    }
+
+    LaunchedEffect(selectedConnection) {
+        selectedConnection?.let { conn ->
+            inboundsViewModel.setConnection(conn, context)
+            usersViewModel.setConnection(conn, context)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkBackground)
     ) {
+        // CONTENT AREA (NavHost with Smooth Horizontal Slide & Fade)
         NavHost(
             navController = navController,
             startDestination = "dashboard",
@@ -158,12 +178,16 @@ fun MainAppStructure(
             popExitTransition = { fadeOut(tween(220)) + slideOutHorizontally(tween(220)) { it / 6 } }
         ) {
             composable("dashboard") {
-                DashboardScreen(connectionsViewModel = connectionsViewModel)
+                DashboardScreen(
+                    connectionsViewModel = connectionsViewModel,
+                    selectedConnection = selectedConnection
+                )
             }
             composable("inbounds") {
                 InboundsScreen(
                     inboundsViewModel = inboundsViewModel,
                     connectionsViewModel = connectionsViewModel,
+                    templatesViewModel = templatesViewModel,
                     usersViewModel = usersViewModel,
                     onNavigateToUsers = {
                         navController.navigate("users") {
@@ -178,15 +202,16 @@ fun MainAppStructure(
             composable("users") {
                 UsersScreen(
                     viewModel = usersViewModel,
-                    connectionsViewModel = connectionsViewModel
+                    selectedConnection = selectedConnection
                 )
             }
             composable("ssh") {
                 SSHInstallerScreen(
                     viewModel = sshInstallerViewModel,
                     onAddConnection = { newConn ->
-                        connectionsViewModel.addConnection(newConn)
-                        navController.navigate("app_settings") {
+                        connectionsViewModel.addConnection(newConn, context)
+                        connectionsViewModel.testConnection(context, newConn)
+                        navController.navigate("dashboard") {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -204,7 +229,7 @@ fun MainAppStructure(
             }
         }
 
-        // Парящая панель вкладок (Островок парит над фоном с прокруткой контента под ним)
+        // 2. ПАРИРУЮЩАЯ НИЖНЯЯ ПАНЕЛЬ ВКЛАДОК (Floating Bottom Glass Bar)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)

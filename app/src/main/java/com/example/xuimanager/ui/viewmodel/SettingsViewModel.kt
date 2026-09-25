@@ -85,4 +85,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             repository.setPinEnabled(enabled)
         }
     }
+
+    val appFontFamily: StateFlow<String> = repository.appFontFamily.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "System"
+    )
+
+    fun updateAppFontFamily(font: String) {
+        viewModelScope.launch {
+            repository.setAppFontFamily(font)
+        }
+    }
 }

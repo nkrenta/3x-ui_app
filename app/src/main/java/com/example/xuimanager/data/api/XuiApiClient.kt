@@ -1,9 +1,11 @@
 package com.example.xuimanager.data.api
 
 import android.content.Context
+import com.example.xuimanager.data.api.model.AddClientApiRequest
 import com.example.xuimanager.data.api.model.AddClientRequest
 import com.example.xuimanager.data.api.model.AddClientSettings
 import com.example.xuimanager.data.api.model.ApiClient
+import com.example.xuimanager.data.api.model.ApiClientItem
 import com.example.xuimanager.data.api.model.ClientSettingsItem
 import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.api.model.LoginRequest
@@ -140,11 +142,15 @@ class XuiApiClient private constructor(
                 }
             }
 
+            val safeHost = if (connection.host.isBlank()) "127.0.0.1" else connection.host.trim()
+            val safePort = if (connection.port <= 0) 2053 else connection.port
+            val safeProtocol = if (connection.protocol.isBlank()) "http" else connection.protocol.trim()
             val formattedPath = connection.path.trim().trim('/')
+
             val baseUrl = if (formattedPath.isNotEmpty()) {
-                "${connection.protocol}://${connection.host}:${connection.port}/$formattedPath/"
+                "$safeProtocol://$safeHost:$safePort/$formattedPath/"
             } else {
-                "${connection.protocol}://${connection.host}:${connection.port}/"
+                "$safeProtocol://$safeHost:$safePort/"
             }
 
             val retrofit = Retrofit.Builder()
@@ -514,9 +520,28 @@ class XuiApiClient private constructor(
             } catch (e: Exception) {
                 val msg =
                     e.localizedMessage ?: e.message ?: "Ошибка изменения состояния подключения"
-            Result.failure(Exception(msg))
+                Result.failure(Exception(msg))
+            }
         }
-    }
+
+    suspend fun deleteInbound(id: Int): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val res1 = service.deleteInboundApi(id)
+                if (res1.isSuccessful && res1.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                val res2 = service.deleteInboundLegacy(id)
+                if (res2.isSuccessful && res2.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                val code = if (!res1.isSuccessful) res1.code() else res2.code()
+                Result.failure(Exception("HTTP $code"))
+            } catch (e: Exception) {
+                val msg = e.localizedMessage ?: e.message ?: "Ошибка удаления подключения"
+                Result.failure(Exception(msg))
+            }
+        }
 
     suspend fun getInboundsList(): Result<List<Inbound>> = withContext(Dispatchers.IO) {
         try {
@@ -576,6 +601,101 @@ class XuiApiClient private constructor(
             Result.failure(Exception(msg))
         }
     }
+
+    suspend fun addClientApi(clientItem: ApiClientItem, inboundIds: List<Int>): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val req = AddClientApiRequest(client = clientItem, inboundIds = inboundIds)
+                val res1 = service.addClientApi(req)
+                if (res1.isSuccessful && res1.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                for (inboundId in inboundIds) {
+                    val legacyClient = ClientSettingsItem(
+                        email = clientItem.email,
+                        limitIp = clientItem.limitIp,
+                        totalGb = clientItem.totalGB,
+                        expiryTime = clientItem.expiryTime,
+                        enable = clientItem.enable
+                    )
+                    addClient(inboundId, legacyClient)
+                }
+                Result.success(true)
+            } catch (e: Exception) {
+                val msg = e.localizedMessage ?: e.message ?: "Ошибка добавления клиента"
+                Result.failure(Exception(msg))
+            }
+        }
+
+    suspend fun getClientLinks(email: String): Result<List<String>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val res = service.getClientLinksApi(email)
+                if (res.isSuccessful && res.body()?.success == true) {
+                    val bodyObj = res.body()?.obj
+                    if (bodyObj != null && bodyObj.isJsonArray) {
+                        val links = bodyObj.asJsonArray.mapNotNull { if (it.isJsonPrimitive) it.asString else null }
+                        return@withContext Result.success(links)
+                    }
+                }
+                Result.failure(Exception("Не удалось получить ссылки"))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun deleteClientByEmail(email: String): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val res = service.deleteClientApiByEmail(email)
+                if (res.isSuccessful && res.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                Result.failure(Exception("HTTP ${res.code()}"))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun resetClientTrafficByEmail(email: String): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val res = service.resetClientTrafficApiByEmail(email)
+                if (res.isSuccessful && res.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                Result.failure(Exception("HTTP ${res.code()}"))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun clearClientHwidsByEmail(email: String): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val res = service.clearClientHwidsApiByEmail(email)
+                if (res.isSuccessful && res.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                Result.failure(Exception("HTTP ${res.code()}"))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun toggleClientEnabled(email: String, enable: Boolean): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val list = listOf(email)
+                val res = if (enable) service.bulkEnableClients(list) else service.bulkDisableClients(list)
+                if (res.isSuccessful && res.body()?.success == true) {
+                    return@withContext Result.success(true)
+                }
+                Result.failure(Exception("HTTP ${res.code()}"))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 
     suspend fun addClient(inboundId: Int, client: ClientSettingsItem): Result<Boolean> =
         withContext(Dispatchers.IO) {

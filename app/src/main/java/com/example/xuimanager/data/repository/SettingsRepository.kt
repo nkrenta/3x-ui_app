@@ -92,4 +92,16 @@ class SettingsRepository(private val context: Context) {
             preferences[SAVED_CONNECTIONS] = json
         }
     }
+
+    val APP_FONT_FAMILY = stringPreferencesKey("app_font_family")
+
+    val appFontFamily: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[APP_FONT_FAMILY] ?: "System"
+    }
+
+    suspend fun setAppFontFamily(font: String) {
+        context.dataStore.edit { preferences ->
+            preferences[APP_FONT_FAMILY] = font
+        }
+    }
 }

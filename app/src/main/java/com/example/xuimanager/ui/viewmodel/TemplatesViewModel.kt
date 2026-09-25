@@ -7,6 +7,7 @@ import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.model.PanelConnection
 import com.example.xuimanager.data.model.RealityKeyGenerator
 import com.example.xuimanager.data.model.RealityTarget
+import com.example.xuimanager.data.model.RealityTargets
 import com.example.xuimanager.data.repository.PanelRepository
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -218,62 +219,34 @@ class TemplatesViewModel : ViewModel() {
     fun importJsonTemplate(jsonString: String, customName: String? = null): Boolean {
         return try {
             val jsonObject = JsonParser.parseString(jsonString).asJsonObject
-
-            val rawRemark = if (jsonObject.has("remark") && !jsonObject.get("remark").isJsonNull) {
-                jsonObject.get("remark").asString
-            } else "Reality | TCP"
-
-            val remark = customName ?: if (rawRemark.startsWith("Подключение №")) {
-                rawRemark
-            } else {
-                "Подключение №${_templates.value.size + 1}: $rawRemark"
-            }
-
-            val port = if (jsonObject.has("port") && !jsonObject.get("port").isJsonNull) {
-                jsonObject.get("port").asInt
-            } else 21717
-
-            val protocol =
-                if (jsonObject.has("protocol") && !jsonObject.get("protocol").isJsonNull) {
-                    jsonObject.get("protocol").asString
-                } else "vless"
-
-            val enable = if (jsonObject.has("enable") && !jsonObject.get("enable").isJsonNull) {
-                jsonObject.get("enable").asBoolean
-            } else true
-
-            val tag = if (jsonObject.has("tag") && !jsonObject.get("tag").isJsonNull) {
-                jsonObject.get("tag").asString
-            } else "in-$port"
-
-            val settingsElem =
-                if (jsonObject.has("settings")) jsonObject.get("settings") else JsonParser.parseString(
-                    "{}"
-                )
-            val streamSettingsElem =
-                if (jsonObject.has("streamSettings")) jsonObject.get("streamSettings") else JsonParser.parseString(
-                    "{}"
-                )
-            val sniffingElem =
-                if (jsonObject.has("sniffing")) jsonObject.get("sniffing") else JsonParser.parseString(
-                    "{}"
-                )
+            val id = if (jsonObject.has("id")) jsonObject.get("id").asInt else 0
+            val remark = customName ?: (if (jsonObject.has("remark")) jsonObject.get("remark").asString else "Новый шаблон")
+            val enable = if (jsonObject.has("enable")) jsonObject.get("enable").asBoolean else true
+            val port = if (jsonObject.has("port")) jsonObject.get("port").asInt else 2053
+            val protocol = if (jsonObject.has("protocol")) jsonObject.get("protocol").asString else "vless"
+            val settingsElem = jsonObject.get("settings")
+            val streamSettingsElem = jsonObject.get("streamSettings") ?: jsonObject.get("stream_settings")
+            val tag = if (jsonObject.has("tag")) jsonObject.get("tag").asString else "in-$port"
+            val sniffingElem = jsonObject.get("sniffing")
 
             var network = "tcp"
             var isReality = false
-            if (jsonObject.has("streamSettings") && jsonObject.get("streamSettings").isJsonObject) {
-                val streamObj = jsonObject.get("streamSettings").asJsonObject
-                if (streamObj.has("network") && !streamObj.get("network").isJsonNull) {
+
+            if (streamSettingsElem != null && streamSettingsElem.isJsonObject) {
+                val streamObj = streamSettingsElem.asJsonObject
+                if (streamObj.has("network")) {
                     network = streamObj.get("network").asString
                 }
-                if (streamObj.has("security") && !streamObj.get("security").isJsonNull) {
-                    isReality =
-                        streamObj.get("security").asString.equals("reality", ignoreCase = true)
+                if (streamObj.has("security")) {
+                    val sec = streamObj.get("security").asString
+                    if (sec.equals("reality", ignoreCase = true)) {
+                        isReality = true
+                    }
                 }
             }
 
             val inbound = Inbound(
-                id = 1,
+                id = id,
                 up = 0,
                 down = 0,
                 total = 0,
@@ -312,11 +285,61 @@ class TemplatesViewModel : ViewModel() {
         _templates.value = _templates.value.filter { it.id != id }
     }
 
+    fun updateTemplate(
+        templateId: String,
+        newName: String,
+        newRemark: String,
+        newProtocol: String = "vless",
+        newPort: Int = 21717,
+        newNetwork: String = "tcp"
+    ) {
+        _templates.value = _templates.value.map { item ->
+            if (item.id == templateId) {
+                try {
+                    val rootObj = JsonParser.parseString(item.rawJson).asJsonObject
+                    val finalRemark = newRemark.ifBlank { newName }
+                    rootObj.addProperty("remark", finalRemark)
+                    rootObj.addProperty("protocol", newProtocol)
+                    rootObj.addProperty("port", newPort)
+
+                    if (rootObj.has("streamSettings") && rootObj.get("streamSettings").isJsonObject) {
+                        val streamObj = rootObj.getAsJsonObject("streamSettings")
+                        streamObj.addProperty("network", newNetwork)
+                    }
+
+                    val updatedJson = rootObj.toString()
+                    val updatedInbound = item.inbound.copy(
+                        remark = finalRemark,
+                        protocol = newProtocol,
+                        port = newPort
+                    )
+
+                    item.copy(
+                        name = newName,
+                        protocol = newProtocol,
+                        port = newPort,
+                        network = newNetwork,
+                        inbound = updatedInbound,
+                        rawJson = updatedJson
+                    )
+                } catch (_: Exception) {
+                    item.copy(
+                        name = newName,
+                        protocol = newProtocol,
+                        port = newPort,
+                        network = newNetwork,
+                        inbound = item.inbound.copy(remark = newRemark.ifBlank { newName })
+                    )
+                }
+            } else item
+        }
+    }
+
     fun applyRealityTemplateWithTarget(
         context: Context,
         connection: PanelConnection,
         template: JsonTemplateItem,
-        target: RealityTarget
+        target: RealityTarget = RealityTargets.targets.first()
     ) {
         _isApplying.value = true
         _applyResult.value = null
@@ -328,7 +351,7 @@ class TemplatesViewModel : ViewModel() {
 
         try {
             val rootObj = JsonParser.parseString(template.rawJson).asJsonObject
-            val cleanRemark = template.name.replace(Regex("""^Подключение\s*№\d+:\s*"""), "").trim()
+            val cleanRemark = template.inbound.remark?.ifBlank { template.name } ?: template.name
             rootObj.addProperty("enable", true)
             rootObj.addProperty("remark", cleanRemark)
             rootObj.addProperty("port", generatedPort)
