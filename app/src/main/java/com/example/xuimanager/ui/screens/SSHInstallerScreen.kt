@@ -35,6 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -59,6 +61,7 @@ fun SSHInstallerScreen(
     var port by remember { mutableStateOf("22") }
     var username by remember { mutableStateOf("root") }
     var password by remember { mutableStateOf("") }
+    var isFormExpanded by remember { mutableStateOf(true) }
 
     val logs by viewModel.logs.collectAsState()
     val isInstalling by viewModel.isInstalling.collectAsState()
@@ -88,7 +91,7 @@ fun SSHInstallerScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ФОРМА ПОДКЛЮЧЕНИЯ К VPS
+            // ФОРМА ПОДКЛЮЧЕНИЯ К VPS (Сворачиваемая с минимальными зазорами)
             item {
                 Card(
                     modifier = Modifier
@@ -107,188 +110,226 @@ fun SSHInstallerScreen(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        // Шапка формы со стрелкой сворачивания/разворачивания
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { isFormExpanded = !isFormExpanded }
+                                .padding(vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(PrimaryContainer.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Terminal,
-                                    contentDescription = "",
-                                    tint = PrimaryContainer,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    "SSH Деплой 3X-UI",
-                                    color = Primary,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    "Автоматическая установка MHSanaei на чистый VPS",
-                                    color = OnSurfaceVariant,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = host,
-                            onValueChange = { host = it },
-                            label = { Text("Хост / IP адрес сервера", color = OnSurfaceVariant, fontSize = 11.sp) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = SurfaceContainerLow,
-                                unfocusedContainerColor = SurfaceContainerLow,
-                                focusedBorderColor = PrimaryContainer,
-                                unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = port,
-                                onValueChange = { port = it },
-                                label = { Text("Порт SSH", color = OnSurfaceVariant, fontSize = 11.sp) },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = SurfaceContainerLow,
-                                    unfocusedContainerColor = SurfaceContainerLow,
-                                    focusedBorderColor = PrimaryContainer,
-                                    unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
-                                    focusedTextColor = TextPrimary,
-                                    unfocusedTextColor = TextPrimary
-                                ),
-                                shape = RoundedCornerShape(10.dp),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.weight(1f)
-                            )
-
-                            OutlinedTextField(
-                                value = username,
-                                onValueChange = { username = it },
-                                label = { Text("Пользователь", color = OnSurfaceVariant, fontSize = 11.sp) },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = SurfaceContainerLow,
-                                    unfocusedContainerColor = SurfaceContainerLow,
-                                    focusedBorderColor = PrimaryContainer,
-                                    unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
-                                    focusedTextColor = TextPrimary,
-                                    unfocusedTextColor = TextPrimary
-                                ),
-                                shape = RoundedCornerShape(10.dp),
-                                singleLine = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text("Пароль SSH (root)", color = OnSurfaceVariant, fontSize = 11.sp) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = SurfaceContainerLow,
-                                unfocusedContainerColor = SurfaceContainerLow,
-                                focusedBorderColor = PrimaryContainer,
-                                unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    if (!isInstalling && host.isNotBlank() && password.isNotBlank()) {
-                                        viewModel.install3xUI(
-                                            context,
-                                            host.trim(),
-                                            port.toIntOrNull() ?: 22,
-                                            username.trim(),
-                                            password.trim()
-                                        )
-                                    } else {
-                                        Toast.makeText(context, "Заполните IP и пароль", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                enabled = !isInstalling && host.isNotBlank() && password.isNotBlank(),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = PrimaryContainer,
-                                    contentColor = OnPrimary,
-                                    disabledContainerColor = SurfaceContainerHighest,
-                                    disabledContentColor = OnSurfaceVariant
-                                ),
-                                modifier = Modifier
-                                    .weight(1.6f)
-                                    .height(38.dp)
                             ) {
-                                if (isInstalling) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        CircularProgressIndicator(
-                                            color = OnPrimary,
-                                            modifier = Modifier.size(14.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Установка...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                } else {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.PlayArrow,
-                                            contentDescription = "",
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Запустить деплой", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(PrimaryContainer.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Terminal,
+                                        contentDescription = "",
+                                        tint = PrimaryContainer,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        "SSH Деплой 3X-UI",
+                                        color = Primary,
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Автоматическая установка MHSanaei на чистый VPS",
+                                        color = OnSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
                                 }
                             }
 
-                            Button(
-                                onClick = { viewModel.clearLogs() },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = SurfaceContainerHighest,
-                                    contentColor = TextPrimary
-                                ),
+                            Icon(
+                                if (isFormExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = "Свернуть / Развернуть",
+                                tint = AccentCyan,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        // Сворачиваемая форма ввода с минимальными зазорами (4.dp)
+                        AnimatedVisibility(
+                            visible = isFormExpanded,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
+                            Column(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(38.dp)
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(15.dp)
+                                HorizontalDivider(color = OutlineVariant.copy(alpha = 0.25f), thickness = 0.5.dp)
+
+                                OutlinedTextField(
+                                    value = host,
+                                    onValueChange = { host = it },
+                                    label = { Text("Хост / IP адрес сервера", color = OnSurfaceVariant, fontSize = 11.sp) },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = SurfaceContainerLow,
+                                        unfocusedContainerColor = SurfaceContainerLow,
+                                        focusedBorderColor = PrimaryContainer,
+                                        unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Очистить", fontSize = 11.sp)
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = port,
+                                        onValueChange = { port = it },
+                                        label = { Text("Порт SSH", color = OnSurfaceVariant, fontSize = 11.sp) },
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = SurfaceContainerLow,
+                                            unfocusedContainerColor = SurfaceContainerLow,
+                                            focusedBorderColor = PrimaryContainer,
+                                            unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                                            focusedTextColor = TextPrimary,
+                                            unfocusedTextColor = TextPrimary
+                                        ),
+                                        shape = RoundedCornerShape(10.dp),
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    OutlinedTextField(
+                                        value = username,
+                                        onValueChange = { username = it },
+                                        label = { Text("Пользователь", color = OnSurfaceVariant, fontSize = 11.sp) },
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = SurfaceContainerLow,
+                                            unfocusedContainerColor = SurfaceContainerLow,
+                                            focusedBorderColor = PrimaryContainer,
+                                            unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                                            focusedTextColor = TextPrimary,
+                                            unfocusedTextColor = TextPrimary
+                                        ),
+                                        shape = RoundedCornerShape(10.dp),
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+
+                                OutlinedTextField(
+                                    value = password,
+                                    onValueChange = { password = it },
+                                    label = { Text("Пароль SSH (root)", color = OnSurfaceVariant, fontSize = 11.sp) },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = SurfaceContainerLow,
+                                        unfocusedContainerColor = SurfaceContainerLow,
+                                        focusedBorderColor = PrimaryContainer,
+                                        unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    singleLine = true,
+                                    visualTransformation = PasswordVisualTransformation(),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 2.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            if (!isInstalling && host.isNotBlank() && password.isNotBlank()) {
+                                                isFormExpanded = false
+                                                viewModel.install3xUI(
+                                                    context,
+                                                    host.trim(),
+                                                    port.toIntOrNull() ?: 22,
+                                                    username.trim(),
+                                                    password.trim()
+                                                )
+                                            } else {
+                                                Toast.makeText(context, "Заполните IP и пароль", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        enabled = !isInstalling && host.isNotBlank() && password.isNotBlank(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = PrimaryContainer,
+                                            contentColor = OnPrimary,
+                                            disabledContainerColor = SurfaceContainerHighest,
+                                            disabledContentColor = OnSurfaceVariant
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1.6f)
+                                            .height(38.dp)
+                                    ) {
+                                        if (isInstalling) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                CircularProgressIndicator(
+                                                    color = OnPrimary,
+                                                    modifier = Modifier.size(14.dp),
+                                                    strokeWidth = 2.dp
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Установка...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        } else {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    Icons.Default.PlayArrow,
+                                                    contentDescription = "",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Запустить деплой", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = { viewModel.clearLogs() },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = SurfaceContainerHighest,
+                                            contentColor = TextPrimary
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(38.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "",
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Очистить", fontSize = 11.sp)
+                                    }
+                                }
                             }
                         }
                     }
@@ -407,6 +448,7 @@ fun SSHInstallerScreen(
                                     }
                                 }
                             } else {
+                                val reversedLogs = remember(logs) { logs.reversed() }
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -414,7 +456,7 @@ fun SSHInstallerScreen(
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
                                     reverseLayout = true
                                 ) {
-                                    items(logs.reversed()) { logLine ->
+                                    items(reversedLogs) { logLine ->
                                         val lineLower = logLine.lowercase()
                                         val lineColor = when {
                                             lineLower.contains("error") || lineLower.contains("fail") || lineLower.contains("ошибка") -> RedStatus
@@ -566,7 +608,7 @@ fun DeploymentProgressCard(
                         )
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         Text(
                             "Прогресс развертывания",
                             color = Color.White,
@@ -602,8 +644,6 @@ fun DeploymentProgressCard(
                 color = PrimaryContainer,
                 trackColor = SurfaceContainerLowest
             )
-
-            HorizontalDivider(color = OutlineVariant.copy(alpha = 0.25f), thickness = 0.5.dp)
 
             // СПИСОК ШАГОВ
             Column(
@@ -688,8 +728,8 @@ private fun DeploymentStepRow(step: DeploymentStepItem) {
             }
         }
 
-        // Заголовок шага + бейдж Active + Телеметрия
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        // Заголовок шага + бейдж Active + Телеметрия (с минимальным межстрочным отступом)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -704,7 +744,8 @@ private fun DeploymentStepRow(step: DeploymentStepItem) {
                     },
                     fontSize = 14.sp,
                     fontWeight = if (step.status == StepStatus.PENDING) FontWeight.Normal else FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif
+                    fontFamily = FontFamily.SansSerif,
+                    style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                 )
 
                 if (step.status == StepStatus.IN_PROGRESS) {
@@ -712,7 +753,7 @@ private fun DeploymentStepRow(step: DeploymentStepItem) {
                         modifier = Modifier
                             .background(Color(0xFF133E43), RoundedCornerShape(6.dp))
                             .border(0.5.dp, PrimaryContainer.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 6.dp, vertical = 0.dp)
                     ) {
                         Text(
                             "Active",
@@ -729,7 +770,8 @@ private fun DeploymentStepRow(step: DeploymentStepItem) {
                 step.description,
                 color = if (step.status == StepStatus.PENDING) Color(0xFF4B5563) else Color(0xFF9CA3AF),
                 fontSize = 12.sp,
-                fontFamily = GeistMonoFontFamily
+                fontFamily = GeistMonoFontFamily,
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
             )
         }
     }

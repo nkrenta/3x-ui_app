@@ -1,5 +1,6 @@
 package com.example.xuimanager.ui.theme
 
+import android.graphics.Typeface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
@@ -43,6 +44,9 @@ fun ThreeXUITheme(
         when (appFontFamily) {
             "Serif" -> FontFamily.Serif
             "Monospace" -> FontFamily.Monospace
+            "Condensed" -> FontFamily(Typeface.create("sans-serif-condensed", Typeface.NORMAL))
+            "Light" -> FontFamily(Typeface.create("sans-serif-light", Typeface.NORMAL))
+            "Medium" -> FontFamily(Typeface.create("sans-serif-medium", Typeface.NORMAL))
             "Default" -> FontFamily.Default
             else -> FontFamily.SansSerif
         }

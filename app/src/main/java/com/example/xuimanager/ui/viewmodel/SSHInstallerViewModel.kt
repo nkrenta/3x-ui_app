@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.xuimanager.data.model.PanelConnection
 import com.example.xuimanager.data.ssh.SSHInstaller
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -114,54 +115,56 @@ class SSHInstallerViewModel : ViewModel() {
                 user = username,
                 password = password,
                 onLogReceived = { log ->
-                    _logs.value = _logs.value + log
+                    viewModelScope.launch(Dispatchers.Main) {
+                        _logs.value = _logs.value + log
 
-                    val cleanLog = log.trim()
-                    val lower = cleanLog.lowercase()
+                        val cleanLog = log.trim()
+                        val lower = cleanLog.lowercase()
 
-                    // Step 1: Handshake
-                    if (lower.contains("успешно установлено") || lower.contains("ssh соединение")) {
-                        updateStepStatus(1, StepStatus.COMPLETED, 0.18f)
-                        updateStepStatus(2, StepStatus.IN_PROGRESS, 0.22f)
-                    }
+                        // Step 1: Handshake
+                        if (lower.contains("успешно установлено") || lower.contains("ssh соединение")) {
+                            updateStepStatus(1, StepStatus.COMPLETED, 0.18f)
+                            updateStepStatus(2, StepStatus.IN_PROGRESS, 0.22f)
+                        }
 
-                    // Step 2: SSH Port Change
-                    if (lower.contains("порт ssh изменен на") || lower.contains("sshd_config")) {
-                        val portMatch = Regex("порт SSH изменен на (\\d+)").find(cleanLog)
-                        val portDesc = if (portMatch != null) "Новый порт SSH: ${portMatch.groupValues[1]} • sshd перезапущен" else "Порт обновлен в /etc/ssh/sshd_config"
-                        updateStepStatus(2, StepStatus.COMPLETED, 0.38f, customDesc = portDesc)
-                        updateStepStatus(3, StepStatus.IN_PROGRESS, 0.40f)
-                    }
+                        // Step 2: SSH Port Change
+                        if (lower.contains("порт ssh изменен на") || lower.contains("sshd_config")) {
+                            val portMatch = Regex("порт SSH изменен на (\\d+)").find(cleanLog)
+                            val portDesc = if (portMatch != null) "Новый порт SSH: ${portMatch.groupValues[1]} • sshd перезапущен" else "Порт обновлен в /etc/ssh/sshd_config"
+                            updateStepStatus(2, StepStatus.COMPLETED, 0.38f, customDesc = portDesc)
+                            updateStepStatus(3, StepStatus.IN_PROGRESS, 0.40f)
+                        }
 
-                    // Step 3: Package Updates
-                    if (lower.contains("обновление установленных пакетов") || lower.contains("apt update")) {
-                        updateStepStatus(3, StepStatus.IN_PROGRESS, 0.50f)
-                    }
-                    if (lower.contains("пакеты системы успешно обновлены")) {
-                        updateStepStatus(3, StepStatus.COMPLETED, 0.62f)
-                        updateStepStatus(4, StepStatus.IN_PROGRESS, 0.65f)
-                    }
+                        // Step 3: Package Updates
+                        if (lower.contains("обновление установленных пакетов") || lower.contains("apt update")) {
+                            updateStepStatus(3, StepStatus.IN_PROGRESS, 0.50f)
+                        }
+                        if (lower.contains("пакеты системы успешно обновлены")) {
+                            updateStepStatus(3, StepStatus.COMPLETED, 0.62f)
+                            updateStepStatus(4, StepStatus.IN_PROGRESS, 0.65f)
+                        }
 
-                    // Step 4: 3X-UI & SSL
-                    if (lower.contains("database selection") || lower.contains("acme") || lower.contains("issuing ip certificate") || lower.contains("let's encrypt")) {
-                        updateStepStatus(4, StepStatus.IN_PROGRESS, 0.82f)
-                    }
+                        // Step 4: 3X-UI & SSL
+                        if (lower.contains("database selection") || lower.contains("acme") || lower.contains("issuing ip certificate") || lower.contains("let's encrypt")) {
+                            updateStepStatus(4, StepStatus.IN_PROGRESS, 0.82f)
+                        }
 
-                    // Step 5: Finalization
-                    if (lower.contains("panel installation complete") || lower.contains("username:")) {
-                        updateStepStatus(4, StepStatus.COMPLETED, 0.90f)
-                        updateStepStatus(5, StepStatus.IN_PROGRESS, 0.95f)
-                    }
+                        // Step 5: Finalization
+                        if (lower.contains("panel installation complete") || lower.contains("username:")) {
+                            updateStepStatus(4, StepStatus.COMPLETED, 0.90f)
+                            updateStepStatus(5, StepStatus.IN_PROGRESS, 0.95f)
+                        }
 
-                    // Parse credentials for screen display
-                    if (lower.contains("username:")) {
-                        parsedUser = cleanLog.substringAfter("Username:").trim()
-                    }
-                    if (lower.contains("password:")) {
-                        parsedPass = cleanLog.substringAfter("Password:").trim()
-                    }
-                    if (parsedUser.isNotBlank() || parsedPass.isNotBlank()) {
-                        _detectedCredentials.value = Pair(parsedUser, parsedPass)
+                        // Parse credentials for screen display
+                        if (lower.contains("username:")) {
+                            parsedUser = cleanLog.substringAfter("Username:").trim()
+                        }
+                        if (lower.contains("password:")) {
+                            parsedPass = cleanLog.substringAfter("Password:").trim()
+                        }
+                        if (parsedUser.isNotBlank() || parsedPass.isNotBlank()) {
+                            _detectedCredentials.value = Pair(parsedUser, parsedPass)
+                        }
                     }
                 }
             ).onSuccess { (connection, file) ->

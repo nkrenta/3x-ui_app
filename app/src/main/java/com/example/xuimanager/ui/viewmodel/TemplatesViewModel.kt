@@ -351,9 +351,23 @@ class TemplatesViewModel : ViewModel() {
 
         try {
             val rootObj = JsonParser.parseString(template.rawJson).asJsonObject
-            val cleanRemark = template.inbound.remark?.ifBlank { template.name } ?: template.name
+            
+            // В начало названия вставляем флаг страны сервера, если он доступен
+            val flagMatch = Regex("^[\\uD83C\\uDDE6-\\uD83C\\uDDFF]{2}").find(connection.name.trim())
+            val flag = flagMatch?.value ?: when {
+                connection.name.contains("Финляндия") || connection.name.contains("Finland") -> "🇫🇮"
+                connection.name.contains("Германия") || connection.name.contains("Germany") -> "🇩🇪"
+                connection.name.contains("США") || connection.name.contains("USA") -> "🇺🇸"
+                connection.name.contains("Нидерланды") || connection.name.contains("Netherlands") -> "🇳🇱"
+                else -> ""
+            }
+
+            val baseRemark = template.inbound.remark?.ifBlank { template.name } ?: template.name
+            val cleanRemark = baseRemark.replace(Regex("^[\\uD83C\\uDDE6-\\uD83C\\uDDFF]{2}\\s*"), "").trim()
+            val finalRemark = if (flag.isNotBlank()) "$flag $cleanRemark" else cleanRemark
+
             rootObj.addProperty("enable", true)
-            rootObj.addProperty("remark", cleanRemark)
+            rootObj.addProperty("remark", finalRemark)
             rootObj.addProperty("port", generatedPort)
             rootObj.addProperty("tag", "in-$generatedPort-tcp")
 

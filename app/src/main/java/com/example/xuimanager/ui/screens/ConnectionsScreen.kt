@@ -783,7 +783,7 @@ fun ConnectionDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 0.dp)
             .fillMaxWidth(0.94f),
         title = {
             Row(
@@ -826,7 +826,7 @@ fun ConnectionDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 0.dp, bottom = 0.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // 1. Название (Опционально)
                 OutlinedTextField(

@@ -7,7 +7,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,7 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
@@ -43,7 +42,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -248,7 +246,7 @@ fun AppSettingsScreen(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(template.name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                             Text(
-                                                "${template.protocol.uppercase()} • ${template.network.uppercase()} • Port ${template.port}",
+                                                "${template.protocol.uppercase()} • ${template.network.uppercase()}",
                                                 color = TextSecondary,
                                                 fontSize = 10.sp
                                             )
@@ -319,7 +317,7 @@ fun AppSettingsScreen(
         ) {
             Column(
                 modifier = Modifier.padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -344,116 +342,184 @@ fun AppSettingsScreen(
                         activeTrackColor = AccentBlue,
                         inactiveTrackColor = DarkCardBorder
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 0.dp)
                 )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Мелкий (60%)", color = TextSecondary, fontSize = 10.sp)
-                    Text("Стандарт (100%)", color = TextSecondary, fontSize = 10.sp)
-                    Text("Крупный (140%)", color = TextSecondary, fontSize = 10.sp)
+                    Text("Мелкий (60%)", color = TextSecondary, fontSize = 12.sp)
+                    Text("Стандарт (100%)", color = TextSecondary, fontSize = 12.sp)
+                    Text("Крупный (140%)", color = TextSecondary, fontSize = 12.sp)
                 }
             }
         }
 
-        // БЛОК: Выбор стиля шрифта
-        Card(
+        // БЛОК: Язык приложения (Слева) и Стиль шрифта (Справа) в одной строке
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = DarkCardBg),
-            shape = RoundedCornerShape(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            var showFontMenu by remember { mutableStateOf(false) }
-            val currentFontFamily by settingsViewModel.appFontFamily.collectAsState()
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // 1. Язык приложения (Слева)
+            Card(
+                modifier = Modifier.weight(1f),
+                colors = CardDefaults.cardColors(containerColor = DarkCardBg),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text("Стиль шрифта", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                var showLanguageMenu by remember { mutableStateOf(false) }
 
-                Box {
-                    Button(
-                        onClick = { showFontMenu = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkCardBorder),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text(currentFontFamily, color = TextPrimary, fontSize = 12.sp)
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        stringRes("app_language"),
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                    DropdownMenu(
-                        expanded = showFontMenu,
-                        onDismissRequest = { showFontMenu = false },
-                        modifier = Modifier.background(DarkCardBg)
-                    ) {
-                        val fontOptions = listOf("System", "Serif", "Monospace", "Default")
-                        fontOptions.forEach { fontName ->
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { showLanguageMenu = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkCardBorder),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(32.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    selectedLanguage,
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    maxLines = 1
+                                )
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = "",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showLanguageMenu,
+                            onDismissRequest = { showLanguageMenu = false },
+                            modifier = Modifier.background(DarkCardBg)
+                        ) {
                             DropdownMenuItem(
-                                text = { Text(fontName, color = TextPrimary) },
+                                text = { Text("Русский", color = TextPrimary, fontSize = 13.sp) },
                                 onClick = {
-                                    settingsViewModel.updateAppFontFamily(fontName)
-                                    showFontMenu = false
+                                    settingsViewModel.updateSelectedLanguage("Русский")
+                                    showLanguageMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("English", color = TextPrimary, fontSize = 13.sp) },
+                                onClick = {
+                                    settingsViewModel.updateSelectedLanguage("English")
+                                    showLanguageMenu = false
                                 }
                             )
                         }
                     }
                 }
             }
-        }
 
-        // БЛОК 3: Язык приложения
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = DarkCardBg),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            var showLanguageMenu by remember { mutableStateOf(false) }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // 2. Стиль шрифта (Справа)
+            Card(
+                modifier = Modifier.weight(1f),
+                colors = CardDefaults.cardColors(containerColor = DarkCardBg),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text(stringRes("app_language"), color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                var showFontMenu by remember { mutableStateOf(false) }
+                val currentFontFamily by settingsViewModel.appFontFamily.collectAsState()
 
-                Box {
-                    Button(
-                        onClick = { showLanguageMenu = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkCardBorder),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text(selectedLanguage, color = TextPrimary, fontSize = 12.sp)
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        "Стиль шрифта",
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                    DropdownMenu(
-                        expanded = showLanguageMenu,
-                        onDismissRequest = { showLanguageMenu = false },
-                        modifier = Modifier.background(DarkCardBg)
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Русский", color = TextPrimary) },
-                            onClick = {
-                                settingsViewModel.updateSelectedLanguage("Русский")
-                                showLanguageMenu = false
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { showFontMenu = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkCardBorder),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(32.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    currentFontFamily,
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    maxLines = 1
+                                )
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = "",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("English", color = TextPrimary) },
-                            onClick = {
-                                settingsViewModel.updateSelectedLanguage("English")
-                                showLanguageMenu = false
+                        }
+
+                        DropdownMenu(
+                            expanded = showFontMenu,
+                            onDismissRequest = { showFontMenu = false },
+                            modifier = Modifier.background(DarkCardBg)
+                        ) {
+                            val fontOptions = listOf(
+                                "System",
+                                "Condensed",
+                                "Medium",
+                                "Light",
+                                "Serif",
+                                "Monospace",
+                                "Default"
+                            )
+                            fontOptions.forEach { fontName ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            fontName,
+                                            color = TextPrimary,
+                                            fontSize = 13.sp
+                                        )
+                                    },
+                                    onClick = {
+                                        settingsViewModel.updateAppFontFamily(fontName)
+                                        showFontMenu = false
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -508,7 +574,9 @@ fun AppSettingsScreen(
                     Button(
                         onClick = { showPinDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = DarkCardBorder),
-                        modifier = Modifier.fillMaxWidth().height(32.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(0.dp)
                     ) {
@@ -640,7 +708,6 @@ fun EditTemplateDialog(
     var appName by remember { mutableStateOf(template.name) }
     var panelRemark by remember { mutableStateOf(template.inbound.remark ?: template.name) }
     var protocol by remember { mutableStateOf(template.protocol) }
-    var portStr by remember { mutableStateOf("${template.port}") }
     var network by remember { mutableStateOf(template.network) }
 
     AlertDialog(
@@ -657,8 +724,8 @@ fun EditTemplateDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 OutlinedTextField(
                     value = appName,
@@ -716,9 +783,15 @@ fun EditTemplateDialog(
                     )
 
                     OutlinedTextField(
-                        value = portStr,
-                        onValueChange = { portStr = it },
-                        label = { Text("Порт", color = OnSurfaceVariant, fontSize = 11.sp) },
+                        value = network,
+                        onValueChange = { network = it },
+                        label = {
+                            Text(
+                                "Сеть / Поток",
+                                color = OnSurfaceVariant,
+                                fontSize = 11.sp
+                            )
+                        },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = SurfaceContainerLow,
                             unfocusedContainerColor = SurfaceContainerLow,
@@ -729,39 +802,26 @@ fun EditTemplateDialog(
                         ),
                         shape = RoundedCornerShape(10.dp),
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f)
                     )
                 }
-
-                OutlinedTextField(
-                    value = network,
-                    onValueChange = { network = it },
-                    label = { Text("Сеть / Поток (tcp, xhttp, grpc, ws)", color = OnSurfaceVariant, fontSize = 11.sp) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = SurfaceContainerLow,
-                        unfocusedContainerColor = SurfaceContainerLow,
-                        focusedBorderColor = PrimaryContainer,
-                        unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val p = portStr.toIntOrNull() ?: template.port
-                    onSave(appName.trim(), panelRemark.trim(), protocol.trim(), p, network.trim())
+                    onSave(
+                        appName.trim(),
+                        panelRemark.trim(),
+                        protocol.trim(),
+                        template.port,
+                        network.trim()
+                    )
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryContainer, contentColor = OnPrimary),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Сохранить изменения", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Сохранить изменения", fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -871,7 +931,7 @@ fun TargetSelectDialog(
                                     Text(
                                         target.name,
                                         color = TextPrimary,
-                                        fontSize = 12.sp,
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
@@ -898,7 +958,7 @@ fun TargetSelectDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Отправить в панель", color = Color.White)
+                Text("Отправить в панель", color = Color.White, fontSize = 12.sp)
             }
         },
         dismissButton = {
