@@ -505,3 +505,45 @@ data class NetworkStats(
     @SerializedName("up") val up: Long = 0,
     @SerializedName("down") val down: Long = 0
 )
+
+// Client Group, HWID & Bulk DTOs
+data class ClientGroup(
+    @SerializedName("id") val id: Int = 0,
+    @SerializedName("name") val name: String = "",
+    @SerializedName("count") val count: Int = 0
+)
+
+data class ClientHwid(
+    @SerializedName("id") val id: Int = 0,
+    @SerializedName("hwid") val hwid: String = "",
+    @SerializedName("ip") val ip: String? = null,
+    @SerializedName("updatedAt") val updatedAt: Long = 0
+)
+
+data class ClientIpInfo(
+    @SerializedName("ip") val ip: String = "",
+    @SerializedName("lastSeen") val lastSeen: Long = 0
+)
+
+data class GroupNameRequest(
+    @SerializedName("name") val name: String
+)
+
+data class GroupRenameRequest(
+    @SerializedName("oldName") val oldName: String,
+    @SerializedName("newName") val newName: String
+)
+
+data class GroupAddClientsRequest(
+    @SerializedName("group") val group: String,
+    @SerializedName("emails") val emails: List<String>
+)
+
+data class BulkAdjustRequest(
+    @SerializedName("emails") val emails: List<String>,
+    @SerializedName("addDays") val addDays: Int = 0,
+    @SerializedName("addBytes") val addBytes: Long = 0,
+    @SerializedName("flow") val flow: String? = null,
+    @SerializedName("limitHwid") val limitHwid: Int? = null,
+    @SerializedName("adTag") val adTag: String? = null
+)

@@ -11,7 +11,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -21,9 +27,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +47,51 @@ import com.example.xuimanager.data.repository.PanelRepository
 import com.example.xuimanager.ui.theme.*
 import com.example.xuimanager.ui.viewmodel.ConnectionsViewModel
 import com.example.xuimanager.ui.viewmodel.UsersViewModel
+import com.google.gson.GsonBuilder
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
+private fun formatBytesLocal(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
+    return String.format(
+        Locale.US,
+        "%.1f %s",
+        bytes / Math.pow(1024.0, digitGroups.toDouble()),
+        units[digitGroups.coerceAtMost(units.size - 1)]
+    )
+}
+
+private fun formatExpiry(expiryTime: Long): String {
+    if (expiryTime <= 0) return "Безлимит"
+    val now = System.currentTimeMillis()
+    val diff = expiryTime - now
+    if (diff <= 0) return "Истёк"
+    
+    val days = TimeUnit.MILLISECONDS.toDays(diff)
+    return if (days > 0) "через $days дн." else "сегодня"
+}
+
+private fun formatLastOnline(lastOnline: Long): String {
+    if (lastOnline <= 0) return "Никогда"
+    val diff = System.currentTimeMillis() - lastOnline
+    
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(diff)
+    if (minutes < 3) return "Онлайн"
+    if (minutes < 60) return "$minutes мин. назад"
+    
+    val hours = TimeUnit.MILLISECONDS.toHours(diff)
+    if (hours < 24) return "$hours ч. назад"
+    
+    val days = TimeUnit.MILLISECONDS.toDays(diff)
+    return "$days дн. назад"
+}
+
+private fun isOnline(lastOnline: Long): Boolean {
+    if (lastOnline <= 0) return false
+    return (System.currentTimeMillis() - lastOnline) < TimeUnit.MINUTES.toMillis(3)
+}
 
 @Composable
 fun UsersScreen(
@@ -50,14 +104,25 @@ fun UsersScreen(
     val connections by connectionsViewModel.connections.collectAsState()
     val context = LocalContext.current
 
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val isSelectionMode by viewModel.isSelectionMode.collectAsState()
+    val selectedClients by viewModel.selectedClients.collectAsState()
+
     var activeSelectedConnection by remember { mutableStateOf<PanelConnection?>(selectedConnection ?: connections.firstOrNull()) }
     var showServerMenu by remember { mutableStateOf(false) }
     var showAddClientDialog by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var selectedStatuses by remember { mutableStateOf<Set<ClientStatusBucket>>(emptySet()) }
+    var sortOrder by remember { mutableStateOf(ClientSortOrder.TRAFFIC_DOWN) }
 
     val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val topContentPadding = statusBarTopPadding + 68.dp
     val bottomContentPadding = navBarBottomPadding + 96.dp
+
+    BackHandler(enabled = isSelectionMode) {
+        viewModel.exitSelection()
+    }
 
     LaunchedEffect(Unit) {
         connectionsViewModel.initPersistence(context)
@@ -72,6 +137,39 @@ fun UsersScreen(
     LaunchedEffect(activeSelectedConnection) {
         activeSelectedConnection?.let { conn ->
             viewModel.setConnection(conn, context)
+        }
+    }
+
+    val filteredClients = remember(clients, searchQuery, selectedStatuses, sortOrder) {
+        val now = System.currentTimeMillis()
+        clients.filter { client ->
+            val matchesQuery = searchQuery.isBlank() ||
+                (client.email?.contains(searchQuery, ignoreCase = true) == true) ||
+                (client.id?.toString()?.contains(searchQuery, ignoreCase = true) == true)
+
+            val matchesStatus = if (selectedStatuses.isEmpty()) true else {
+                val isOnline = isOnline(client.traffic?.lastOnline ?: 0L)
+                val isDepleted = (client.getEffectiveExpiryTime() in 1..now) ||
+                        (client.getTotalTrafficLimit() in 1..(client.getUpTraffic() + client.getDownTraffic()))
+
+                selectedStatuses.any { status ->
+                    when (status) {
+                        ClientStatusBucket.ONLINE -> isOnline
+                        ClientStatusBucket.ACTIVE -> client.enable && !isDepleted
+                        ClientStatusBucket.DISABLED -> !client.enable
+                        ClientStatusBucket.DEPLETED -> isDepleted
+                    }
+                }
+            }
+
+            matchesQuery && matchesStatus
+        }.let { list ->
+            when (sortOrder) {
+                ClientSortOrder.TRAFFIC_DOWN -> list.sortedByDescending { it.getUpTraffic() + it.getDownTraffic() }
+                ClientSortOrder.LAST_ONLINE -> list.sortedByDescending { it.traffic?.lastOnline ?: 0L }
+                ClientSortOrder.EMAIL_ASC -> list.sortedBy { it.email ?: "" }
+                ClientSortOrder.EXPIRY -> list.sortedBy { if (it.getEffectiveExpiryTime() <= 0) Long.MAX_VALUE else it.getEffectiveExpiryTime() }
+            }
         }
     }
 
@@ -91,6 +189,38 @@ fun UsersScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Поиск пользователей
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.setSearchQuery(it) },
+                    placeholder = { Text("Поиск по email или ID...", color = TextSecondary, fontSize = 13.sp) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = "", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = SurfaceContainerLow,
+                        unfocusedContainerColor = SurfaceContainerLow,
+                        focusedBorderColor = PrimaryContainer,
+                        unfocusedBorderColor = OutlineVariant.copy(alpha = 0.4f),
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                )
+            }
+
             // Заголовок списка пользователей и быстрая фильтрация
             item {
                 Row(
@@ -118,20 +248,43 @@ fun UsersScreen(
                                 )
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
-                            val activeCount = clients.count { it.enable }
+                            val activeCount = filteredClients.count { it.enable }
                             Text("$activeCount активны", color = AccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
-                    Text("По трафику ▼", color = TextSecondary, fontSize = 11.sp)
+                    Text(
+                        "Фильтры / Сортировка ▼",
+                        color = AccentCyan,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { showFilterSheet = true }
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
                 }
             }
 
             // Список клиентов
-            items(clients) { client ->
+            items(filteredClients) { client ->
+                val isSelected = selectedClients.contains(client.email)
                 ClientCardItem(
                     client = client,
                     viewModel = viewModel,
-                    context = context
+                    context = context,
+                    activeSelectedConnection = activeSelectedConnection,
+                    isSelected = isSelected,
+                    isSelectionMode = isSelectionMode,
+                    onClick = {
+                        if (isSelectionMode) {
+                            client.email?.let { viewModel.toggleSelection(it) }
+                        }
+                    },
+                    onLongClick = {
+                        if (!isSelectionMode) {
+                            client.email?.let { viewModel.toggleSelection(it) }
+                        }
+                    }
                 )
             }
 
@@ -242,7 +395,7 @@ fun UsersScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(80.dp))
+                        Spacer(modifier = Modifier.width(35.dp))
 
                         // Селектор серверов (прямо правее от надписи "Клиенты")
                         Box {
@@ -264,7 +417,7 @@ fun UsersScreen(
                                     )
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Text(
-                                        selectedConnection?.name ?: "Выберите сервер",
+                                        activeSelectedConnection?.name ?: "Выберите сервер",
                                         color = TextPrimary,
                                         fontSize = 12.sp,
                                         maxLines = 1,
@@ -340,17 +493,106 @@ fun UsersScreen(
             }
         }
 
-        // ДИАЛОГ ДОБАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯ (POST /panel/api/clients/add)
+        // БАР МАССОВОГО УПРАВЛЕНИЯ КЛИЕНТАМИ (ПЛАВАЮЩИЙ СНИЗУ)
+        AnimatedVisibility(
+            visible = isSelectionMode,
+            enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Surface(
+                color = DarkCardBg,
+                shadowElevation = 24.dp,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                border = BorderStroke(1.dp, DarkCardBorder)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Выбрано: ${selectedClients.size}",
+                            color = TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { viewModel.selectAllVisible(clients) }) {
+                                Text("Выбрать все", color = AccentCyan)
+                            }
+                            TextButton(onClick = { viewModel.exitSelection() }) {
+                                Text("Отмена", color = TextSecondary)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        IconButton(onClick = { viewModel.bulkEnableSelected(context) }) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = "", tint = GreenStatus)
+                                Text("Вкл", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                        IconButton(onClick = { viewModel.bulkDisableSelected(context) }) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Pause, contentDescription = "", tint = YellowStatus)
+                                Text("Пауза", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                        IconButton(onClick = { viewModel.bulkResetTrafficSelected(context) }) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Refresh, contentDescription = "", tint = AccentCyan)
+                                Text("Сброс", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                        IconButton(onClick = { viewModel.bulkDeleteSelected(context) }) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Delete, contentDescription = "", tint = RedStatus)
+                                Text("Удалить", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ШИТ ФИЛЬТРОВ И СОРТИРОВКИ
+        if (showFilterSheet) {
+            ClientFilterSheet(
+                selectedStatuses = selectedStatuses,
+                sortOrder = sortOrder,
+                onApply = { statuses, order ->
+                    selectedStatuses = statuses
+                    sortOrder = order
+                },
+                onDismiss = { showFilterSheet = false }
+            )
+        }
+
+        // ДИАЛОГ СОЗДАНИЯ / РЕДАКТИРОВАНИЯ ПОЛЬЗОВАТЕЛЯ (POST /panel/api/clients/add)
         if (showAddClientDialog && activeSelectedConnection != null) {
-            AddClientDialog(
+            ClientEditorDialog(
                 connection = activeSelectedConnection!!,
                 onConfirm = { clientItem, inboundIds ->
                     viewModel.addClientApi(context, clientItem, inboundIds) { success, errorMsg ->
                         if (success) {
-                            Toast.makeText(context, "Пользователь ${clientItem.email} успешно создан!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Пользователь ${clientItem.email} успешно сохранён!", Toast.LENGTH_SHORT).show()
                             showAddClientDialog = false
                         } else {
-                            Toast.makeText(context, "Ошибка: ${errorMsg ?: "Не удалось создать"}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Ошибка: ${errorMsg ?: "Не удалось сохранить"}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
@@ -361,210 +603,289 @@ fun UsersScreen(
 }
 
 @Composable
+fun ExportJsonDialog(
+    client: ApiClient,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val jsonString = remember(client) {
+        GsonBuilder().setPrettyPrinting().create().toJson(client)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("JSON конфигурация: ${client.email ?: "Client"}", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    color = SurfaceContainerLow,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(10.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            jsonString,
+                            color = AccentCyan,
+                            fontSize = 11.sp,
+                            fontFamily = GeistMonoFontFamily
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Client JSON", jsonString))
+                    Toast.makeText(context, "JSON скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryContainer, contentColor = OnPrimary),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Скопировать JSON", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Закрыть", color = TextSecondary)
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun ClientCardItem(
     client: ApiClient,
     viewModel: UsersViewModel,
-    context: Context
+    context: Context,
+    activeSelectedConnection: PanelConnection? = null,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
+    onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {}
 ) {
     var showOptionsMenu by remember { mutableStateOf(false) }
+    var showJsonDialog by remember { mutableStateOf(false) }
     var viewingLinks by remember { mutableStateOf<List<String>?>(null) }
     var isLoadingLinks by remember { mutableStateOf(false) }
 
     val clientEmail = client.email ?: "Client"
 
-    Column(
+    val bgColor = when {
+        isSelected -> PrimaryContainer.copy(alpha = 0.2f)
+        else -> SurfaceContainerHigh
+    }
+
+    val borderColor = when {
+        isSelected -> PrimaryContainer
+        else -> DarkCardBorder
+    }
+
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceContainerHigh, RoundedCornerShape(12.dp))
-            .border(1.dp, DarkCardBorder, RoundedCornerShape(12.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
+            // Строка 1: Онлайн точка + Email + Свитч ВКЛ/ВЫКЛ (или Чекбокс в режиме выбора)
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(26.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(SurfaceContainerHighest, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        clientEmail.take(2).uppercase(),
-                        color = Primary,
-                        fontWeight = FontWeight.Bold
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onClick() },
+                        colors = CheckboxDefaults.colors(checkedColor = AccentCyan),
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                 }
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            clientEmail,
-                            color = TextPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+
+                val online = isOnline(client.traffic?.lastOnline ?: 0L)
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(
+                            if (online) Color(0xFF34C759) else TextSecondary.copy(alpha = 0.4f),
+                            CircleShape
                         )
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    if (client.enable) GreenStatus.copy(alpha = 0.2f) else RedStatus.copy(alpha = 0.2f),
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                if (client.enable) "Активен" else "Выключен",
-                                color = if (client.enable) GreenStatus else RedStatus,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(top = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    SurfaceContainerLowest,
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text("VLESS Reality", color = PrimaryFixedDim, fontSize = 10.sp)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    SurfaceContainerLowest,
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                client.flow?.ifBlank { "xHTTP" } ?: "xHTTP",
-                                color = SecondaryFixedDim,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
+                )
+
+                Text(
+                    text = clientEmail,
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 6.dp)
+                )
+
+                if (!isSelectionMode) {
+                    Switch(
+                        checked = client.enable,
+                        onCheckedChange = {
+                            viewModel.toggleClientEnabled(context, clientEmail, !client.enable)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = GreenStatus,
+                            uncheckedThumbColor = TextSecondary,
+                            uncheckedTrackColor = DarkCardBorder
+                        ),
+                        modifier = Modifier
+                            .scale(0.7f)
+                            .requiredHeight(24.dp)
+                    )
                 }
             }
-        }
 
-        // 4 КНОПКИ ДЕЙСТВИЙ (QR, ССЫЛКА, ПАУЗА/ВКЛ, ОПЦИИ)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = {
-                    isLoadingLinks = true
-                    viewModel.getClientLinks(context, clientEmail) { links ->
-                        isLoadingLinks = false
-                        if (links.isNotEmpty()) {
-                            viewingLinks = links
-                        } else {
-                            Toast.makeText(context, "Ссылки не найдены", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                },
-                enabled = !isLoadingLinks,
-                modifier = Modifier.weight(1f).height(36.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SurfaceContainerLow,
-                    contentColor = Primary
-                ),
-                contentPadding = PaddingValues(0.dp)
+            // Строка 2: Трафик ↑ ↓ из Лимит
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.QrCode, contentDescription = "", modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("QR", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = {
-                    isLoadingLinks = true
-                    viewModel.getClientLinks(context, clientEmail) { links ->
-                        isLoadingLinks = false
-                        if (links.isNotEmpty()) {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("VLESS Link", links.first()))
-                            Toast.makeText(context, "Ссылка скопирована в буфер обмена", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Ссылки не найдены", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                },
-                enabled = !isLoadingLinks,
-                modifier = Modifier.weight(1f).height(36.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SurfaceContainerLow,
-                    contentColor = PrimaryFixed
-                ),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Icon(Icons.Default.Link, contentDescription = "", modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("ССЫЛКА", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = {
-                    viewModel.toggleClientEnabled(context, clientEmail, !client.enable)
-                    Toast.makeText(context, if (client.enable) "Клиент отключен" else "Клиент включен", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier.weight(1f).height(36.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SurfaceContainerLow,
-                    contentColor = if (client.enable) YellowStatus else GreenStatus
-                ),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Icon(
-                    if (client.enable) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = "",
-                    modifier = Modifier.size(15.dp)
+                Text(
+                    "↑ ${formatBytesLocal(client.getUpTraffic())}",
+                    color = TextPrimary,
+                    fontSize = 11.sp,
+                    style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                 )
-                Spacer(Modifier.width(4.dp))
-                Text(if (client.enable) "ПАУЗА" else "ВКЛ", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "↓ ${formatBytesLocal(client.getDownTraffic())}",
+                    color = TextPrimary,
+                    fontSize = 11.sp,
+                    style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                )
+                if (client.getTotalTrafficLimit() > 0) {
+                    Text(
+                        "из ${formatBytesLocal(client.getTotalTrafficLimit())}",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                    )
+                }
             }
 
-            Box(modifier = Modifier.weight(1f)) {
+            // Строка 3: Истекает
+            Text(
+                "Истекает: ${formatExpiry(client.getEffectiveExpiryTime())}",
+                color = TextSecondary,
+                fontSize = 11.sp,
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+            )
+
+            // Строка 4: Был в сети
+            Text(
+                "Был в сети: ${formatLastOnline(client.traffic?.lastOnline ?: 0L)}",
+                color = TextSecondary,
+                fontSize = 11.sp,
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+            )
+
+            Spacer(Modifier.height(2.dp))
+
+            // Кнопки действий (QR, Ссылка, Опции)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 Button(
-                    onClick = { showOptionsMenu = true },
-                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                    onClick = {
+                        isLoadingLinks = true
+                        viewModel.getClientLinks(context, clientEmail) { links ->
+                            isLoadingLinks = false
+                            if (links.isNotEmpty()) {
+                                viewingLinks = links
+                            } else {
+                                Toast.makeText(context, "Ссылки не найдены", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    enabled = !isLoadingLinks,
+                    modifier = Modifier.weight(1f).height(32.dp),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SurfaceContainerLow,
-                        contentColor = OnSurfaceVariant
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceContainerLow, contentColor = Primary),
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "", modifier = Modifier.size(15.dp))
+                    Icon(Icons.Default.QrCode, contentDescription = "", modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("ОПЦИИ", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("QR", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
 
-                DropdownMenu(
-                    expanded = showOptionsMenu,
-                    onDismissRequest = { showOptionsMenu = false },
-                    modifier = Modifier
-                        .background(DarkCardBg)
-                        .border(1.dp, DarkCardBorder, RoundedCornerShape(10.dp))
+                Button(
+                    onClick = {
+                        isLoadingLinks = true
+                        viewModel.getClientLinks(context, clientEmail) { links ->
+                            isLoadingLinks = false
+                            if (links.isNotEmpty()) {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("VLESS Link", links.first()))
+                                Toast.makeText(context, "Ссылка скопирована в буфер обмена", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Ссылки не найдены", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    enabled = !isLoadingLinks,
+                    modifier = Modifier.weight(1f).height(32.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceContainerLow, contentColor = PrimaryFixed),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
+                    Icon(Icons.Default.Link, contentDescription = "", modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("ССЫЛКА", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    Button(
+                        onClick = { showOptionsMenu = true },
+                        modifier = Modifier.fillMaxWidth().height(32.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceContainerLow, contentColor = OnSurfaceVariant),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = "", modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("ОПЦИИ", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    DropdownMenu(
+                        expanded = showOptionsMenu,
+                        onDismissRequest = { showOptionsMenu = false },
+                        modifier = Modifier
+                            .background(DarkCardBg)
+                            .border(1.dp, DarkCardBorder, RoundedCornerShape(10.dp))
+                    ) {
+                    DropdownMenuItem(
+                        text = { Text("📄 Экспорт JSON", color = TextPrimary, fontSize = 12.sp) },
+                        onClick = {
+                            showOptionsMenu = false
+                            showJsonDialog = true
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("🔄 Сбросить трафик", color = TextPrimary, fontSize = 12.sp) },
                         onClick = {
@@ -598,39 +919,61 @@ private fun ClientCardItem(
     }
 
     viewingLinks?.let { links ->
-        AlertDialog(
-            onDismissRequest = { viewingLinks = null },
-            title = { Text("Ссылка подключения: $clientEmail", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    links.forEach { link ->
-                        Surface(
-                            color = SurfaceContainerLow,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("Link", link))
-                                Toast.makeText(context, "Ссылка скопирована", Toast.LENGTH_SHORT).show()
-                            }
-                        ) {
-                            Text(
-                                link,
-                                color = AccentCyan,
-                                fontSize = 11.sp,
-                                fontFamily = GeistMonoFontFamily,
-                                modifier = Modifier.padding(8.dp),
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+        if (activeSelectedConnection != null) {
+            ClientShareSheet(
+                client = client,
+                links = links,
+                connection = activeSelectedConnection,
+                onDismiss = { viewingLinks = null },
+                onDelete = {
+                    viewingLinks = null
+                    viewModel.deleteClientByEmail(context, clientEmail) {
+                        Toast.makeText(context, "Пользователь $clientEmail удалён", Toast.LENGTH_SHORT).show()
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { viewingLinks = null }) {
-                    Text("Закрыть", color = AccentCyan)
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { viewingLinks = null },
+                title = { Text("Ссылка подключения: $clientEmail", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        links.forEach { link ->
+                            Surface(
+                                color = SurfaceContainerLow,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("Link", link))
+                                    Toast.makeText(context, "Ссылка скопирована", Toast.LENGTH_SHORT).show()
+                                }
+                            ) {
+                                Text(
+                                    link,
+                                    color = AccentCyan,
+                                    fontSize = 11.sp,
+                                    fontFamily = GeistMonoFontFamily,
+                                    modifier = Modifier.padding(8.dp),
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewingLinks = null }) {
+                        Text("Закрыть", color = AccentCyan)
+                    }
                 }
-            }
+            )
+        }
+    }
+
+    if (showJsonDialog) {
+        ExportJsonDialog(
+            client = client,
+            onDismiss = { showJsonDialog = false }
         )
     }
 }
@@ -853,4 +1196,5 @@ fun AddClientDialog(
             }
         }
     )
+}
 }

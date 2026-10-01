@@ -6,7 +6,11 @@ import com.example.xuimanager.data.api.model.AddClientRequest
 import com.example.xuimanager.data.api.model.AddClientSettings
 import com.example.xuimanager.data.api.model.ApiClient
 import com.example.xuimanager.data.api.model.ApiClientItem
+import com.example.xuimanager.data.api.model.BulkAdjustRequest
+import com.example.xuimanager.data.api.model.ClientGroup
+import com.example.xuimanager.data.api.model.ClientHwid
 import com.example.xuimanager.data.api.model.ClientSettingsItem
+import com.example.xuimanager.data.api.model.GroupNameRequest
 import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.api.model.LoginRequest
 import com.example.xuimanager.data.api.model.PanelInfo
@@ -15,6 +19,7 @@ import com.example.xuimanager.data.model.PanelConnection
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
@@ -696,6 +701,109 @@ class XuiApiClient private constructor(
                 Result.failure(e)
             }
         }
+
+    suspend fun listClientGroups(): Result<List<ClientGroup>> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.listClientGroups()
+            if (res.isSuccessful && res.body()?.success == true && res.body()?.obj != null) {
+                val list = Gson().fromJson(res.body()!!.obj, object : TypeToken<List<ClientGroup>>() {}.type) ?: emptyList<ClientGroup>()
+                return@withContext Result.success(list)
+            }
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createClientGroup(name: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.createClientGroup(GroupNameRequest(name))
+            if (res.isSuccessful && res.body()?.success == true) return@withContext Result.success(true)
+            Result.failure(Exception("HTTP ${res.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getClientIps(email: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.getClientIps(email)
+            if (res.isSuccessful && res.body()?.success == true && res.body()?.obj != null) {
+                val list = Gson().fromJson(res.body()!!.obj, object : TypeToken<List<String>>() {}.type) ?: emptyList<String>()
+                return@withContext Result.success(list)
+            }
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun listClientHwids(email: String): Result<List<ClientHwid>> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.listClientHwids(email)
+            if (res.isSuccessful && res.body()?.success == true && res.body()?.obj != null) {
+                val list = Gson().fromJson(res.body()!!.obj, object : TypeToken<List<ClientHwid>>() {}.type) ?: emptyList<ClientHwid>()
+                return@withContext Result.success(list)
+            }
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteClientHwid(email: String, hwidId: Int): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.deleteClientHwid(email, hwidId)
+            if (res.isSuccessful && res.body()?.success == true) return@withContext Result.success(true)
+            Result.failure(Exception("HTTP ${res.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteOrphanClients(): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.deleteOrphanClients()
+            if (res.isSuccessful && res.body()?.success == true) return@withContext Result.success(true)
+            Result.failure(Exception("HTTP ${res.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun exportClients(): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.exportClients()
+            if (res.isSuccessful && res.body()?.success == true && res.body()?.obj != null) {
+                return@withContext Result.success(Gson().toJson(res.body()!!.obj))
+            }
+            Result.failure(Exception("HTTP ${res.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun bulkAdjustClients(req: BulkAdjustRequest): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.bulkAdjustClients(req)
+            if (res.isSuccessful && res.body()?.success == true) return@withContext Result.success(true)
+            Result.failure(Exception("HTTP ${res.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getHappLink(clientId: Int): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.getHappLink(clientId)
+            if (res.isSuccessful && res.body()?.success == true && res.body()?.obj != null) {
+                return@withContext Result.success(res.body()!!.getObjAsString() ?: "")
+            }
+            Result.failure(Exception("HTTP ${res.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun addClient(inboundId: Int, client: ClientSettingsItem): Result<Boolean> =
         withContext(Dispatchers.IO) {

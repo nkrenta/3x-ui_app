@@ -33,8 +33,120 @@ class UsersViewModel : ViewModel() {
     private val _highlightedClientId = MutableStateFlow<String?>(null)
     val highlightedClientId = _highlightedClientId.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    private val _selectedClients = MutableStateFlow<Set<String>>(emptySet())
+    val selectedClients = _selectedClients.asStateFlow()
+
+    private val _isSelectionMode = MutableStateFlow(false)
+    val isSelectionMode = _isSelectionMode.asStateFlow()
+
     private var currentConnection: PanelConnection? = null
     private val repository = PanelRepository()
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun toggleSelection(email: String) {
+        val current = _selectedClients.value.toMutableSet()
+        if (current.contains(email)) {
+            current.remove(email)
+        } else {
+            current.add(email)
+        }
+        _selectedClients.value = current
+        _isSelectionMode.value = current.isNotEmpty()
+    }
+
+    fun selectAllVisible(filteredClients: List<ApiClient>) {
+        val emails = filteredClients.mapNotNull { it.email }
+        if (_selectedClients.value.containsAll(emails) && emails.isNotEmpty()) {
+            _selectedClients.value = emptySet()
+            _isSelectionMode.value = false
+        } else {
+            _selectedClients.value = emails.toSet()
+            _isSelectionMode.value = true
+        }
+    }
+
+    fun exitSelection() {
+        _selectedClients.value = emptySet()
+        _isSelectionMode.value = false
+    }
+
+    fun bulkEnableSelected(context: Context) {
+        val emails = _selectedClients.value.toList()
+        if (emails.isEmpty()) return
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            viewModelScope.launch {
+                emails.forEach { email -> repository.toggleClientEnabled(context, connection, email, true) }
+                exitSelection()
+                loadAllClients(context)
+            }
+        }
+    }
+
+    fun bulkDisableSelected(context: Context) {
+        val emails = _selectedClients.value.toList()
+        if (emails.isEmpty()) return
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            viewModelScope.launch {
+                emails.forEach { email -> repository.toggleClientEnabled(context, connection, email, false) }
+                exitSelection()
+                loadAllClients(context)
+            }
+        }
+    }
+
+    fun bulkDeleteSelected(context: Context) {
+        val emails = _selectedClients.value.toList()
+        if (emails.isEmpty()) return
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            viewModelScope.launch {
+                emails.forEach { email -> repository.deleteClientByEmail(context, connection, email) }
+                exitSelection()
+                loadAllClients(context)
+            }
+        }
+    }
+
+    fun bulkResetTrafficSelected(context: Context) {
+        val emails = _selectedClients.value.toList()
+        if (emails.isEmpty()) return
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            viewModelScope.launch {
+                emails.forEach { email -> repository.resetClientTrafficByEmail(context, connection, email) }
+                exitSelection()
+                loadAllClients(context)
+            }
+        }
+    }
+
+    fun bulkAdjustSelected(context: Context, addDays: Int, addGb: Long, limitHwid: Int? = null, onResult: (Boolean) -> Unit = {}) {
+        val emails = _selectedClients.value.toList()
+        if (emails.isEmpty()) return
+        currentConnection?.let { connection ->
+            _isLoading.value = true
+            viewModelScope.launch {
+                repository.bulkAdjustClients(context, connection, emails, addDays, addGb, limitHwid)
+                    .onSuccess {
+                        exitSelection()
+                        loadAllClients(context)
+                        onResult(true)
+                    }
+                    .onFailure {
+                        _isLoading.value = false
+                        onResult(false)
+                    }
+            }
+        }
+    }
 
     fun setConnection(connection: PanelConnection, context: Context) {
         currentConnection = connection

@@ -2,8 +2,11 @@ package com.example.xuimanager.data.api
 
 import com.example.xuimanager.data.api.model.AddClientApiRequest
 import com.example.xuimanager.data.api.model.AddClientRequest
+import com.example.xuimanager.data.api.model.BulkAdjustRequest
 import com.example.xuimanager.data.api.model.ClientListResponse
 import com.example.xuimanager.data.api.model.GenericResponse
+import com.example.xuimanager.data.api.model.GroupAddClientsRequest
+import com.example.xuimanager.data.api.model.GroupNameRequest
 import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.api.model.InboundListResponse
 import com.example.xuimanager.data.api.model.LoginRequest
@@ -236,6 +239,45 @@ interface XuiApiService {
     suspend fun bulkDisableClients(
         @Body emails: List<String>
     ): Response<GenericResponse>
+
+    // Client Groups
+    @GET("panel/api/clients/groups")
+    suspend fun listClientGroups(): Response<GenericResponse>
+
+    @POST("panel/api/clients/groups/create")
+    suspend fun createClientGroup(@Body body: GroupNameRequest): Response<GenericResponse>
+
+    @POST("panel/api/clients/groups/bulkAdd")
+    suspend fun addClientsToGroup(@Body body: GroupAddClientsRequest): Response<GenericResponse>
+
+    @POST("panel/api/clients/groups/bulkRemove")
+    suspend fun removeClientsFromGroup(@Body emails: List<String>): Response<GenericResponse>
+
+    // HWID & IP Tracking
+    @POST("panel/api/clients/ips/{email}")
+    suspend fun getClientIps(@Path("email") email: String): Response<GenericResponse>
+
+    @POST("panel/api/clients/clearIps/{email}")
+    suspend fun clearClientIps(@Path("email") email: String): Response<GenericResponse>
+
+    @POST("panel/api/clients/hwids/{email}")
+    suspend fun listClientHwids(@Path("email") email: String): Response<GenericResponse>
+
+    @DELETE("panel/api/clients/hwids/{email}/{id}")
+    suspend fun deleteClientHwid(@Path("email") email: String, @Path("id") id: Int): Response<GenericResponse>
+
+    // Bulk Adjust & Export/Import
+    @POST("panel/api/clients/bulkAdjust")
+    suspend fun bulkAdjustClients(@Body body: BulkAdjustRequest): Response<GenericResponse>
+
+    @POST("panel/api/clients/delOrphans")
+    suspend fun deleteOrphanClients(): Response<GenericResponse>
+
+    @GET("panel/api/clients/export")
+    suspend fun exportClients(): Response<GenericResponse>
+
+    @POST("panel/api/clients/happLink/{id}")
+    suspend fun getHappLink(@Path("id") id: Int): Response<GenericResponse>
 
     // Traffic reset
     @POST("panel/inbound/resetClientTraffic/{clientId}")

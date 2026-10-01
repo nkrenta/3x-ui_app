@@ -4,6 +4,9 @@ import android.content.Context
 import com.example.xuimanager.data.api.XuiApiClient
 import com.example.xuimanager.data.api.model.ApiClient
 import com.example.xuimanager.data.api.model.ApiClientItem
+import com.example.xuimanager.data.api.model.BulkAdjustRequest
+import com.example.xuimanager.data.api.model.ClientGroup
+import com.example.xuimanager.data.api.model.ClientHwid
 import com.example.xuimanager.data.api.model.ClientSettingsItem
 import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.api.model.PanelInfo
@@ -292,6 +295,110 @@ class PanelRepository {
             if (loginResult.isSuccess) {
                 res = apiClient.toggleClientEnabled(email, enable)
             }
+        }
+        res
+    }
+
+    suspend fun listClientGroups(context: Context, connection: PanelConnection): Result<List<ClientGroup>> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.listClientGroups()
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.listClientGroups()
+        }
+        res
+    }
+
+    suspend fun createClientGroup(context: Context, connection: PanelConnection, name: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.createClientGroup(name)
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.createClientGroup(name)
+        }
+        res
+    }
+
+    suspend fun getClientIps(context: Context, connection: PanelConnection, email: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.getClientIps(email)
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.getClientIps(email)
+        }
+        res
+    }
+
+    suspend fun listClientHwids(context: Context, connection: PanelConnection, email: String): Result<List<ClientHwid>> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.listClientHwids(email)
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.listClientHwids(email)
+        }
+        res
+    }
+
+    suspend fun deleteClientHwid(context: Context, connection: PanelConnection, email: String, hwidId: Int): Result<Boolean> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.deleteClientHwid(email, hwidId)
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.deleteClientHwid(email, hwidId)
+        }
+        res
+    }
+
+    suspend fun deleteOrphanClients(context: Context, connection: PanelConnection): Result<Boolean> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.deleteOrphanClients()
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.deleteOrphanClients()
+        }
+        res
+    }
+
+    suspend fun exportClients(context: Context, connection: PanelConnection): Result<String> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.exportClients()
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.exportClients()
+        }
+        res
+    }
+
+    suspend fun getHappLink(context: Context, connection: PanelConnection, clientId: Int): Result<String> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.getHappLink(clientId)
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.getHappLink(clientId)
+        }
+        res
+    }
+
+    suspend fun bulkAdjustClients(
+        context: Context,
+        connection: PanelConnection,
+        emails: List<String>,
+        addDays: Int,
+        addGb: Long,
+        limitHwid: Int? = null
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        val addBytes = addGb * 1024 * 1024 * 1024L
+        val req = BulkAdjustRequest(
+            emails = emails,
+            addDays = addDays,
+            addBytes = addBytes,
+            limitHwid = limitHwid
+        )
+        var res = client.bulkAdjustClients(req)
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.bulkAdjustClients(req)
         }
         res
     }
