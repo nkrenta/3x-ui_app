@@ -77,6 +77,9 @@ interface XuiApiService {
     @POST("panel/setting/restartPanel")
     suspend fun restartPanel(): Response<GenericResponse>
 
+    @GET("panel/setting/all")
+    suspend fun getAllSettings(): Response<GenericResponse>
+
     // Restart Xray Service
     @POST("panel/api/server/restartXrayService")
     suspend fun restartXrayServiceApi(): Response<GenericResponse>

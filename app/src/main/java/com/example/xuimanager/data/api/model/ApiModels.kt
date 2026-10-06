@@ -414,7 +414,11 @@ data class ApiClient(
     }
 
     fun getEffectiveSubId(): String {
-        return subId ?: subIdLegacy ?: ""
+        val s = subId ?: subIdLegacy
+        if (!s.isNullOrBlank()) return s
+        if (!uuid.isNullOrBlank()) return uuid!!
+        if (!password.isNullOrBlank()) return password!!
+        return email ?: getIdAsString()
     }
 
     fun getEffectiveExpiryTime(): Long {

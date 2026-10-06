@@ -805,6 +805,21 @@ class XuiApiClient private constructor(
         }
     }
 
+    suspend fun getAllSettings(): Result<JsonObject> = withContext(Dispatchers.IO) {
+        try {
+            val res = service.getAllSettings()
+            if (res.isSuccessful && res.body()?.success == true) {
+                val obj = res.body()?.obj
+                if (obj is JsonObject) {
+                    return@withContext Result.success(obj)
+                }
+            }
+            Result.failure(Exception("HTTP ${res.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun addClient(inboundId: Int, client: ClientSettingsItem): Result<Boolean> =
         withContext(Dispatchers.IO) {
             try {

@@ -4,26 +4,86 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,7 +104,25 @@ import com.example.xuimanager.data.api.model.ApiClientItem
 import com.example.xuimanager.data.api.model.Inbound
 import com.example.xuimanager.data.model.PanelConnection
 import com.example.xuimanager.data.repository.PanelRepository
-import com.example.xuimanager.ui.theme.*
+import com.example.xuimanager.ui.theme.AccentCyan
+import com.example.xuimanager.ui.theme.DarkBackground
+import com.example.xuimanager.ui.theme.DarkCardBg
+import com.example.xuimanager.ui.theme.DarkCardBorder
+import com.example.xuimanager.ui.theme.GeistMonoFontFamily
+import com.example.xuimanager.ui.theme.GreenStatus
+import com.example.xuimanager.ui.theme.OnPrimary
+import com.example.xuimanager.ui.theme.OnSurfaceVariant
+import com.example.xuimanager.ui.theme.OutlineVariant
+import com.example.xuimanager.ui.theme.Primary
+import com.example.xuimanager.ui.theme.PrimaryContainer
+import com.example.xuimanager.ui.theme.PrimaryFixed
+import com.example.xuimanager.ui.theme.RedStatus
+import com.example.xuimanager.ui.theme.SurfaceContainerHigh
+import com.example.xuimanager.ui.theme.SurfaceContainerLow
+import com.example.xuimanager.ui.theme.TextPrimary
+import com.example.xuimanager.ui.theme.TextSecondary
+import com.example.xuimanager.ui.theme.YellowStatus
+import com.example.xuimanager.ui.theme.stringRes
 import com.example.xuimanager.ui.viewmodel.ConnectionsViewModel
 import com.example.xuimanager.ui.viewmodel.UsersViewModel
 import com.google.gson.GsonBuilder
@@ -384,7 +462,10 @@ fun UsersScreen(
 
                         Box(
                             modifier = Modifier
-                                .background(AccentCyan.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                .background(
+                                    AccentCyan.copy(alpha = 0.15f),
+                                    RoundedCornerShape(8.dp)
+                                )
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
@@ -620,7 +701,9 @@ fun ExportJsonDialog(
                 Surface(
                     color = SurfaceContainerLow,
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 240.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -673,6 +756,7 @@ private fun ClientCardItem(
 ) {
     var showOptionsMenu by remember { mutableStateOf(false) }
     var showJsonDialog by remember { mutableStateOf(false) }
+    var viewingSubUrl by remember { mutableStateOf<String?>(null) }
     var viewingLinks by remember { mutableStateOf<List<String>?>(null) }
     var isLoadingLinks by remember { mutableStateOf(false) }
 
@@ -814,17 +898,19 @@ private fun ClientCardItem(
                 Button(
                     onClick = {
                         isLoadingLinks = true
-                        viewModel.getClientLinks(context, clientEmail) { links ->
-                            isLoadingLinks = false
-                            if (links.isNotEmpty()) {
-                                viewingLinks = links
-                            } else {
-                                Toast.makeText(context, "Ссылки не найдены", Toast.LENGTH_SHORT).show()
+                        viewModel.getClientSubscriptionUrl(context, client) { subUrl ->
+                            viewModel.getClientLinks(context, clientEmail) { links ->
+                                isLoadingLinks = false
+                                viewingSubUrl = subUrl
+                                viewingLinks =
+                                    links.ifEmpty { if (!subUrl.isNullOrBlank()) listOf(subUrl) else emptyList() }
                             }
                         }
                     },
                     enabled = !isLoadingLinks,
-                    modifier = Modifier.weight(1f).height(32.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SurfaceContainerLow, contentColor = Primary),
                     contentPadding = PaddingValues(0.dp)
@@ -837,19 +923,54 @@ private fun ClientCardItem(
                 Button(
                     onClick = {
                         isLoadingLinks = true
-                        viewModel.getClientLinks(context, clientEmail) { links ->
-                            isLoadingLinks = false
-                            if (links.isNotEmpty()) {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("VLESS Link", links.first()))
-                                Toast.makeText(context, "Ссылка скопирована в буфер обмена", Toast.LENGTH_SHORT).show()
+                        viewModel.getClientSubscriptionUrl(context, client) { subUrl ->
+                            if (!subUrl.isNullOrBlank()) {
+                                isLoadingLinks = false
+                                val clipboard =
+                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(
+                                    ClipData.newPlainText(
+                                        "Subscription Link",
+                                        subUrl
+                                    )
+                                )
+                                Toast.makeText(
+                                    context,
+                                    "Ссылка подписки скопирована",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             } else {
-                                Toast.makeText(context, "Ссылки не найдены", Toast.LENGTH_SHORT).show()
+                                viewModel.getClientLinks(context, clientEmail) { links ->
+                                    isLoadingLinks = false
+                                    if (links.isNotEmpty()) {
+                                        val clipboard =
+                                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(
+                                            ClipData.newPlainText(
+                                                "Link",
+                                                links.first()
+                                            )
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            "Ссылка скопирована в буфер обмена",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "Ссылки не найдены",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
                             }
                         }
                     },
                     enabled = !isLoadingLinks,
-                    modifier = Modifier.weight(1f).height(32.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SurfaceContainerLow, contentColor = PrimaryFixed),
                     contentPadding = PaddingValues(0.dp)
@@ -862,7 +983,9 @@ private fun ClientCardItem(
                 Box(modifier = Modifier.weight(1f)) {
                     Button(
                         onClick = { showOptionsMenu = true },
-                        modifier = Modifier.fillMaxWidth().height(32.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = SurfaceContainerLow, contentColor = OnSurfaceVariant),
                         contentPadding = PaddingValues(0.dp)
@@ -924,9 +1047,14 @@ private fun ClientCardItem(
                 client = client,
                 links = links,
                 connection = activeSelectedConnection,
-                onDismiss = { viewingLinks = null },
+                subUrl = viewingSubUrl,
+                onDismiss = {
+                    viewingLinks = null
+                    viewingSubUrl = null
+                },
                 onDelete = {
                     viewingLinks = null
+                    viewingSubUrl = null
                     viewModel.deleteClientByEmail(context, clientEmail) {
                         Toast.makeText(context, "Пользователь $clientEmail удалён", Toast.LENGTH_SHORT).show()
                     }
@@ -942,11 +1070,23 @@ private fun ClientCardItem(
                             Surface(
                                 color = SurfaceContainerLow,
                                 shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    clipboard.setPrimaryClip(ClipData.newPlainText("Link", link))
-                                    Toast.makeText(context, "Ссылка скопирована", Toast.LENGTH_SHORT).show()
-                                }
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val clipboard =
+                                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(
+                                            ClipData.newPlainText(
+                                                "Link",
+                                                link
+                                            )
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            "Ссылка скопирована",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                             ) {
                                 Text(
                                     link,
@@ -1097,7 +1237,9 @@ fun AddClientDialog(
                 )
 
                 if (isLoadingInbounds) {
-                    Box(modifier = Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = AccentCyan, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     }
                 } else if (availableInbounds.isEmpty()) {

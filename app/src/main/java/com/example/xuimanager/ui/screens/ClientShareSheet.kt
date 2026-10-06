@@ -9,9 +9,18 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,8 +34,27 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,7 +69,17 @@ import com.example.xuimanager.data.api.model.ClientHwid
 import com.example.xuimanager.data.model.PanelConnection
 import com.example.xuimanager.data.repository.PanelRepository
 import com.example.xuimanager.ui.qr.QrCodeGenerator
-import com.example.xuimanager.ui.theme.*
+import com.example.xuimanager.ui.theme.AccentCyan
+import com.example.xuimanager.ui.theme.DarkCardBg
+import com.example.xuimanager.ui.theme.DarkCardBorder
+import com.example.xuimanager.ui.theme.GeistMonoFontFamily
+import com.example.xuimanager.ui.theme.GreenStatus
+import com.example.xuimanager.ui.theme.OnPrimary
+import com.example.xuimanager.ui.theme.PrimaryContainer
+import com.example.xuimanager.ui.theme.RedStatus
+import com.example.xuimanager.ui.theme.SurfaceContainerLow
+import com.example.xuimanager.ui.theme.TextPrimary
+import com.example.xuimanager.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -80,12 +118,23 @@ fun ClientShareSheet(
     val repository = remember { PanelRepository() }
     val email = client.email ?: "Client"
 
-    // Определение публичного URL подписки, если он сформирован
-    val effectiveSubUrl = subUrl ?: if (client.getEffectiveSubId().isNotBlank()) {
-        "${connection.protocol}://${connection.host}:${connection.port}/sub/${client.getEffectiveSubId()}"
-    } else {
-        links.firstOrNull() ?: ""
+    var panelSettings by remember {
+        mutableStateOf<com.example.xuimanager.data.api.model.PanelSettings?>(
+            null
+        )
     }
+
+    LaunchedEffect(connection) {
+        repository.getAllSettings(context, connection).onSuccess { settings ->
+            panelSettings = com.example.xuimanager.data.api.model.PanelSettings.fromJson(settings)
+        }
+    }
+
+    // Точное построение URL подписки по алгоритму 3x-ui (BuildSubURIBase + GetDefaultSettings)
+    val subIdOrEmail = client.getEffectiveSubId().ifBlank { client.email ?: "" }
+    val host = com.example.xuimanager.data.api.model.PanelSettings.hostOf(connection.host)
+    val calculatedSubUrl = panelSettings?.subscriptionUrl(host, subIdOrEmail)
+    val effectiveSubUrl = subUrl ?: calculatedSubUrl ?: links.firstOrNull() ?: ""
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -448,7 +497,9 @@ private fun HappLinkBlock(
         HorizontalDivider(color = DarkCardBorder, thickness = 0.5.dp)
         Text("Зашифрованная Happ ссылка", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         when {
-            loading -> Box(modifier = Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
+            loading -> Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = AccentCyan, modifier = Modifier.size(20.dp))
             }
             link != null -> {
@@ -527,7 +578,9 @@ private fun IpLogDialog(
         title = { Text("IP лог: $email", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold) },
         text = {
             if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = AccentCyan, modifier = Modifier.size(24.dp))
                 }
             } else if (ips.isEmpty()) {
@@ -576,7 +629,9 @@ private fun HwidManageDialog(
         title = { Text("HWID устройства: $email", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold) },
         text = {
             if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = AccentCyan, modifier = Modifier.size(24.dp))
                 }
             } else if (hwids.isEmpty()) {

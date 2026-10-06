@@ -148,6 +148,15 @@ class UsersViewModel : ViewModel() {
         }
     }
 
+    fun getClientSubscriptionUrl(context: Context, client: ApiClient, onResult: (String?) -> Unit) {
+        currentConnection?.let { connection ->
+            viewModelScope.launch {
+                val subUrl = repository.getSubscriptionUrl(context, connection, client)
+                onResult(subUrl)
+            }
+        }
+    }
+
     fun setConnection(connection: PanelConnection, context: Context) {
         currentConnection = connection
         loadAllClients(context)

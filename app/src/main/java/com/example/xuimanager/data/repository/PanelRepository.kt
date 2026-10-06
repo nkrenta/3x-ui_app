@@ -379,6 +379,34 @@ class PanelRepository {
         res
     }
 
+    suspend fun getAllSettings(
+        context: Context,
+        connection: PanelConnection
+    ): Result<com.google.gson.JsonObject> = withContext(Dispatchers.IO) {
+        val client = XuiApiClient.getInstance(context, connection)
+        var res = client.getAllSettings()
+        if (res.isFailure) {
+            val loginResult = client.login()
+            if (loginResult.isSuccess) res = client.getAllSettings()
+        }
+        res
+    }
+
+    suspend fun getSubscriptionUrl(
+        context: Context,
+        connection: PanelConnection,
+        client: ApiClient
+    ): String? = withContext(Dispatchers.IO) {
+        val subId = client.getEffectiveSubId()
+        if (subId.isBlank()) return@withContext null
+        val settingsRes = getAllSettings(context, connection)
+        val settings = settingsRes.getOrNull()
+            ?.let { com.example.xuimanager.data.api.model.PanelSettings.fromJson(it) }
+            ?: com.example.xuimanager.data.api.model.PanelSettings()
+        val host = com.example.xuimanager.data.api.model.PanelSettings.hostOf(connection.host)
+        settings.subscriptionUrl(host, subId)
+    }
+
     suspend fun bulkAdjustClients(
         context: Context,
         connection: PanelConnection,
